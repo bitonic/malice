@@ -1,0 +1,76 @@
+------------------
+Compiling ex01.alice
+Executing ex01.alice
+Program returned: 72
+------------------
+Compiling ex02.alice
+ERROR
+------------------
+Compiling ex03.alice
+ERROR
+------------------
+Compiling ex04.alice
+Executing ex04.alice
+Program returned: 2
+------------------
+Compiling ex05.alice
+Executing ex05.alice
+Program returned: 136
+------------------
+Compiling ex06.alice
+Executing ex06.alice
+Program returned: 6
+------------------
+Compiling ex07.alice
+Executing ex07.alice
+Program returned: 4
+------------------
+Compiling ex08.alice
+Executing ex08.alice
+Program returned: 23
+------------------
+Compiling ex09.alice
+Executing ex09.alice
+Program returned: 255
+------------------
+Compiling ex10.alice
+Executing ex10.alice
+Program returned: 150
+------------------
+Compiling ex11.alice
+Executing ex11.alice
+Program returned: 6
+------------------
+Compiling ex12.alice
+Executing ex12.alice
+Program returned: 28
+------------------
+Compiling ex13.alice
+Executing ex13.alice
+Program returned: 42
+------------------
+Compiling ex14.alice
+Executing ex14.alice
+Program returned: 42
+------------------
+Compiling ex15.alice
+ERROR
+------------------
+Compiling ex16.alice
+ERROR
+------------------
+Compiling ex17.alice
+Executing ex17.alice
+Program returned: 248
+------------------
+Compiling ex18.alice
+Executing ex18.alice
+Program returned: 9
+------------------
+Compiling ex19.alice
+Executing ex19.alice
+Program returned: 7
+------------------
+Compiling ex20.alice
+Executing ex20.alice
+Program returned: 9
