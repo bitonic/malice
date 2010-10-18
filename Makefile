@@ -1,9 +1,9 @@
 default:
-	rm -f malice.hs
-	rm -f scanner.hs
-	alex scanner.x
-	happy malice.y
-	ghc -o malice scanner.hs malice.hs
+	rm -f Malice.hs
+	rm -f Scanner.hs
+	alex Scanner.x
+	happy Malice.y
+	ghc -o malice Scanner.hs Malice.hs
 
 clean:
 	rm -f *.hs
