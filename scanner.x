@@ -13,15 +13,15 @@ $operators = [\+\-\*\/\%\^\~]      -- mathematical operators
 tokens :-
        $white+                                  ;
        too                                      ;
-       @separator                               { \s -> Separator }
-       was $white+ a $white+ number             { \s -> Declare }
-       became                                   { \s -> Assign }
-       $operators                               { \s -> Op (head s) }
-       drank                                    { \s -> Decrement }
-       ate                                      { \s -> Increment }
-       Alice $white+ found                      { \s -> Ret }
-       $alpha [$alpha $digit \_]*               { \s -> Var s}
-       $digit+                                  { \s -> Int (read s) }
+       @separator                               { \s -> TSeparator }
+       was $white+ a $white+ number             { \s -> TDeclare }
+       became                                   { \s -> TAssign }
+       $operators                               { \s -> TOp s }
+       drank                                    { \s -> TOp "--" }
+       ate                                      { \s -> TOp "++" }
+       Alice $white+ found                      { \s -> TRet }
+       $alpha [$alpha $digit \_]*               { \s -> TVar s}
+       $digit+                                  { \s -> TInt (read s) }
        
 
 {
@@ -29,18 +29,12 @@ tokens :-
 
 -- The token type:
 data Token =
-     Assign             |
-     Declare            |
-     Separator          |
-     Var String         |
-     Int Int            |
-     Increment          |
-     Decrement          |
-     Ret                |
-     Op Char
-     deriving (Eq,Show)
-
-main = do
-     s <- getContents
-     print (alexScanTokens s)
+    TAssign             |
+    TDeclare            |
+    TSeparator          |
+    TVar String         |
+    TInt Int            |
+    TRet                |
+    TOp String
+    deriving (Eq,Show)
 }
