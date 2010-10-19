@@ -6,7 +6,7 @@ module Scanner where
 
 $digit = 0-9                       -- digits
 $alpha = [a-zA-Z]                  -- alphabetic characters
-$operators = [\+\-\*\/\%\^\~]      -- mathematical operators
+$operators = [\+\-\*\/\%\^\~\&\|]  -- mathematical operators
 @separator = and | but | then | \. | \,
 @variable = $alpha [$alpha $digit \_]*
 
@@ -19,7 +19,7 @@ tokens :-
        $operators                               { \p s -> TOp p s }
        drank                                    { \p s -> TOp p "--" }
        ate                                      { \p s -> TOp p "++" }
-       Alice $white+ found                      { \p s -> TRet p }
+       Alice $white+ found $white+              { \p s -> TRet p }
        $alpha [$alpha $digit \_]*               { \p s -> TVar p s}
        $digit+                                  { \p s -> TInt p (read s) }
        
@@ -53,11 +53,11 @@ getColumnNum :: AlexPosn -> Int
 getColumnNum (AlexPn offset lineNum colNum) = colNum
 
 --alexScanTokens :: String -> [token]
-alexScanTokens2 str = go (alexStartPos, '\n', str)
+maliceScanner str = go (alexStartPos, '\n', str)
     where go inp@(pos, _, str) =
               case alexScan inp 0 of
                 AlexEOF -> []
-                AlexError _ -> error ("lexical error @ line " ++ show (getLineNum(pos)) ++ " and column " ++ show (getColumnNum(pos)))
+                AlexError _ -> error ("Lexical error at line " ++ show (getLineNum(pos)) ++ " and column " ++ show (getColumnNum(pos)))
                 AlexSkip  inp' len     -> go inp'
                 AlexToken inp' len act -> act pos (take len str) : go inp'
 
