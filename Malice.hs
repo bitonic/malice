@@ -7,6 +7,6 @@ import Scanner
 
 main = do 
   inStr <- getContents
-  let code = codeGenC $ maliceParser $ maliceScanner inStr
+  let code = show $ maliceParser $ maliceScanner inStr
   putStrLn code
 --  putStrLn ("C code output:\n" ++ code)
