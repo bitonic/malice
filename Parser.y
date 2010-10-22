@@ -43,22 +43,22 @@ Statement     : var assign Exp                { Assign $1 $3 }
               | var declare                   { Declare $1 }
               | var "--"
                 {
-                  Assign $1 (Plus (Var $1) (Int 1))
+                  Assign $1 (BinOp "+" (Var $1) (Int 1))
                 }
               | var "++"
                 {
-                  Assign $1 (Minus (Var $1) (Int 1))
+                  Assign $1 (BinOp "-" (Var $1) (Int 1))
                 }
 
-Exp           : Exp "|" Exp                   { BitOr $1 $3 }
-              | Exp "^" Exp                   { BitXor $1 $3 }
-              | Exp "&" Exp                   { BitAnd $1 $3 }
-              | Exp "+" Exp                   { Plus $1 $3 }
-              | Exp "-" Exp                   { Minus $1 $3 }
-              | Exp "*" Exp                   { Times $1 $3 }
-              | Exp "/" Exp                   { Div $1 $3 }
-              | Exp "%" Exp                   { Mod $1 $3 }
-              | "~" Exp                       { BitNot $2 }
+Exp           : Exp "|" Exp                   { BinOp "|" $1 $3 }
+              | Exp "^" Exp                   { BinOp "^" $1 $3 }
+              | Exp "&" Exp                   { BinOp "&" $1 $3 }
+              | Exp "+" Exp                   { BinOp "+" $1 $3 }
+              | Exp "-" Exp                   { BinOp "-" $1 $3 }
+              | Exp "*" Exp                   { BinOp "*" $1 $3 }
+              | Exp "/" Exp                   { BinOp "/" $1 $3 }
+              | Exp "%" Exp                   { BinOp "%" $1 $3 }
+              | "~" Exp                       { UnOp "~" $2 }
               | var                           { Var $1 }
               | int                           { Int $1 }
 
@@ -82,15 +82,8 @@ data Statement
      deriving (Show, Eq)
 
 data Exp
-     = BitOr Exp Exp
-     | BitXor Exp Exp
-     | BitAnd Exp Exp
-     | Plus Exp Exp
-     | Minus Exp Exp
-     | Times Exp Exp
-     | Div Exp Exp
-     | Mod Exp Exp
-     | BitNot Exp
+     = UnOp String Exp
+     | BinOp String Exp Exp
      | Int Int
      | Var String
      deriving (Show, Eq)
