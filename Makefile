@@ -3,7 +3,7 @@ default:
 	rm -f Scanner.hs
 	alex Scanner.x
 	happy Parser.y
-	ghc -o malice Scanner.hs Parser.hs CodeGenC.hs Malice.hs
+	ghc -o malice Scanner.hs Parser.hs Malice.hs
 
 clean:
 	rm -f Parser.hs

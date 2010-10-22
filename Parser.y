@@ -35,11 +35,19 @@ import Scanner
 
 Program       : StatementList ret Exp sep     { Program $1 $3 }
 
-StatementList : Statement sep                 { StatementList $1 StatementListEmpty }
-              | Statement sep StatementList   { StatementList $1 $3 }
+StatementList : Statement sep                 { [$1] }
+              | Statement sep StatementList   { $1 : $3 }
 
 Statement     : var assign Exp                { Assign $1 $3 }
               | var declare                   { Declare $1 }
+              | var "--"
+                {
+                  Assign $1 (Plus (Var $1) (Int 1))
+                }
+              | var "++"
+                {
+                  Assign $1 (Minus (Var $1) (Int 1))
+                }
 
 Exp           : Exp "|" Exp                   { BitOr $1 $3 }
               | Exp "^" Exp                   { BitXor $1 $3 }
@@ -50,12 +58,8 @@ Exp           : Exp "|" Exp                   { BitOr $1 $3 }
               | Exp "/" Exp                   { Div $1 $3 }
               | Exp "%" Exp                   { Mod $1 $3 }
               | "~" Exp                       { BitNot $2 }
-              | Exp  "--"                     { Decr $1 }
-              | Exp "++"                      { Incr $1 }
-              | Term                          { Term $1 }
-
-Term          : int                           { Int $1 }
               | var                           { Var $1 }
+              | int                           { Int $1 }
 
 {
 parseError :: [Token] -> a
@@ -68,10 +72,8 @@ data Program
     = Program StatementList Exp
       deriving (Show, Eq)
 
-data StatementList
-    = StatementList Statement StatementList
-    | StatementListEmpty
-    deriving (Show, Eq)
+type StatementList
+    = [Statement]
 
 data Statement
     = Assign String Exp
@@ -88,13 +90,14 @@ data Exp
     | Div Exp Exp
     | Mod Exp Exp
     | BitNot Exp
-    | Decr Exp
-    | Incr Exp
-    | Term Term
+    | Int Int
+    | Var String
     deriving (Show, Eq)
 
+{-
 data Term
     = Int Int
     | Var String
     deriving (Show, Eq)
+-}
 }
