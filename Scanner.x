@@ -7,7 +7,10 @@ module Scanner where
 $digit = 0-9                       -- digits
 $alpha = [a-zA-Z]                  -- alphabetic characters
 $operators = [\+\-\*\/\%\^\~\&\|]  -- mathematical operators
+-- The various separators
 @separator = and | but | then | \. | \,
+-- Standard variable name, must start with character
+-- and can contain characters digits and underscores.
 @variable = $alpha [$alpha $digit \_]*
 
 tokens :-
@@ -25,18 +28,15 @@ tokens :-
        
 
 {
--- Each action has type :: String -> Token
-
--- The token type:
-data Token =
-    TAssign AlexPosn            |
-    TDeclare AlexPosn           |
-    TSeparator AlexPosn         |
-    TVar AlexPosn String        |
-    TInt AlexPosn Int           |
-    TRet AlexPosn               |
-    TOp AlexPosn String
-    deriving (Eq,Show)
+data Token
+     = TAssign AlexPosn
+     | TDeclare AlexPosn
+     | TSeparator AlexPosn
+     | TVar AlexPosn String
+     | TInt AlexPosn Int
+     | TRet AlexPosn
+     | TOp AlexPosn String
+     deriving (Eq,Show)
 
 tokenPosn (TAssign p) = p
 tokenPosn (TDeclare p) = p
@@ -46,20 +46,19 @@ tokenPosn (TInt p s) = p
 tokenPosn (TRet p) = p
 tokenPosn (TOp p s) = p
 
-getLineNum :: AlexPosn -> Int
-getLineNum (AlexPn offset lineNum colNum) = lineNum 
+getLineNum (AlexPn _ l c) = l
 
-getColumnNum :: AlexPosn -> Int
-getColumnNum (AlexPn offset lineNum colNum) = colNum
+getColumnNum (AlexPn _ l c) = c
 
---alexScanTokens :: String -> [token]
-maliceScanner str = go (alexStartPos, '\n', str)
-    where go inp@(pos, _, str) =
-              case alexScan inp 0 of
-                AlexEOF -> []
-                AlexError _ -> error ("Lexical error at line " ++ show (getLineNum(pos)) ++ " and column " ++ show (getColumnNum(pos)))
-                AlexSkip  inp' len     -> go inp'
-                AlexToken inp' len act -> act pos (take len str) : go inp'
-
-
+maliceScanner str
+  = go (alexStartPos, '\n', str)
+  where
+    go inp@(pos, _, str)
+      = case alexScan inp 0 of
+             AlexEOF -> []
+             AlexError _ -> error ("Lexical error at line " ++
+                                   show (getLineNum pos) ++
+                                   " and column " ++ show (getColumnNum pos))
+             AlexSkip  inp' len -> go inp'
+             AlexToken inp' len act -> act pos (take len str) : go inp'
 }

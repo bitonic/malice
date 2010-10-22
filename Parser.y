@@ -6,6 +6,7 @@ import Scanner
 %name maliceParser
 %tokentype { Token }
 %error { parseError }
+-- Operator priority
 %left "|"
 %left "^"
 %left "&"
@@ -13,23 +14,23 @@ import Scanner
 %left "*" "/" "%"
 %left "~" "--" "++"
 %token
-        sep                               { TSeparator _ }
-        declare                           { TDeclare _ }
-        assign                            { TAssign _ }
-        "+"                               { TOp _ "+" }
-        "-"                               { TOp _ "-" }
-        "*"                               { TOp _ "*" }
-        "/"                               { TOp _ "/" }
-        "%"                               { TOp _ "%" }
-        "^"                               { TOp _ "^" }
-        "~"                               { TOp _ "~" }
-        "&"                               { TOp _ "&" }
-        "|"                               { TOp _ "|" }
-        "--"                              { TOp _ "--" }
-        "++"                              { TOp _ "++" }
-        ret                               { TRet _ }
-        var                               { TVar _ $$ }
-        int                               { TInt _ $$ }
+  sep                               { TSeparator _ }
+  declare                           { TDeclare _ }
+  assign                            { TAssign _ }
+  "+"                               { TOp _ "+" }
+  "-"                               { TOp _ "-" }
+  "*"                               { TOp _ "*" }
+  "/"                               { TOp _ "/" }
+  "%"                               { TOp _ "%" }
+  "^"                               { TOp _ "^" }
+  "~"                               { TOp _ "~" }
+  "&"                               { TOp _ "&" }
+  "|"                               { TOp _ "|" }
+  "--"                              { TOp _ "--" }
+  "++"                              { TOp _ "++" }
+  ret                               { TRet _ }
+  var                               { TVar _ $$ }
+  int                               { TInt _ $$ }
 
 %%
 
@@ -64,40 +65,33 @@ Exp           : Exp "|" Exp                   { BitOr $1 $3 }
 {
 parseError :: [Token] -> a
 parseError tokenList
-    = let pos = tokenPosn(head(tokenList)) 
-      in 
-        error ("Parse error at line " ++ show(getLineNum(pos)) ++ " and column " ++ show(getColumnNum(pos)))
+  = let pos = tokenPosn(head(tokenList)) 
+    in 
+     error ("Parse error at line " ++ show(getLineNum(pos)) ++
+            " and column " ++ show(getColumnNum(pos)))
 
 data Program
-    = Program StatementList Exp
-      deriving (Show, Eq)
+     = Program StatementList Exp
+     deriving (Show, Eq)
 
-type StatementList
-    = [Statement]
+type StatementList = [Statement]
 
 data Statement
-    = Assign String Exp
-    | Declare String
-    deriving (Show, Eq)
+     = Assign String Exp
+     | Declare String
+     deriving (Show, Eq)
 
 data Exp
-    = BitOr Exp Exp
-    | BitXor Exp Exp
-    | BitAnd Exp Exp
-    | Plus Exp Exp
-    | Minus Exp Exp
-    | Times Exp Exp
-    | Div Exp Exp
-    | Mod Exp Exp
-    | BitNot Exp
-    | Int Int
-    | Var String
-    deriving (Show, Eq)
-
-{-
-data Term
-    = Int Int
-    | Var String
-    deriving (Show, Eq)
--}
+     = BitOr Exp Exp
+     | BitXor Exp Exp
+     | BitAnd Exp Exp
+     | Plus Exp Exp
+     | Minus Exp Exp
+     | Times Exp Exp
+     | Div Exp Exp
+     | Mod Exp Exp
+     | BitNot Exp
+     | Int Int
+     | Var String
+     deriving (Show, Eq)
 }
