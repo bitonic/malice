@@ -37,5 +37,7 @@ maliceSemanticsExp (UnOp var e) vars
 maliceSemanticsExp (BinOp var e1 e2) vars    
   = checkDeclaration var vars (do maliceSemanticsExp e1 vars
                                   maliceSemanticsExp e2 vars)
-maliceSemanticsExp _ _    
+maliceSemanticsExp (Var var) vars
+  checkDeclaration var vars (return True)
+maliceSemantics (Int _) _  
   = return True
