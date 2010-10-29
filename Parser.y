@@ -34,21 +34,16 @@ import Scanner
 
 %%
 
-Program       : StatementList ret Exp sep     { Program $1 $3 }
+Program       : StatementList                 { Program $1 }
 
 StatementList : Statement sep                 { [$1] }
               | Statement sep StatementList   { $1 : $3 }
 
 Statement     : var assign Exp                { Assign $1 $3 }
               | var declare                   { Declare $1 }
-              | var "--"
-                {
-                  Assign $1 (BinOp "+" (Var $1) (Int 1))
-                }
-              | var "++"
-                {
-                  Assign $1 (BinOp "-" (Var $1) (Int 1))
-                }
+              | var "--"                      { Decrease $1 }
+              | var "++"                      { Increase $1 }
+              | ret Exp                       { Return $2 }
 
 Exp           : Exp "|" Exp                   { BinOp "|" $1 $3 }
               | Exp "^" Exp                   { BinOp "^" $1 $3 }
@@ -71,7 +66,7 @@ parseError tokenList
             " and column " ++ show(getColumnNum(pos)))
 
 data Program
-     = Program StatementList Exp
+     = Program StatementList
      deriving (Show, Eq)
 
 type StatementList = [Statement]
@@ -79,6 +74,9 @@ type StatementList = [Statement]
 data Statement
      = Assign String Exp
      | Declare String
+     | Decrease String
+     | Increase String
+     | Return Exp
      deriving (Show, Eq)
 
 data Exp
