@@ -1,4 +1,4 @@
-module Codegen where
+module CodeGen where
 
 import List
 import Parser

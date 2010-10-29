@@ -1,7 +1,7 @@
 module Main where
 
 import System ( getArgs )
-import Codegen
+import CodeGen
 import Parser
 import Scanner
 
