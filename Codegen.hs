@@ -15,6 +15,8 @@ data LLcmd
 --Set Dest value
 	 | LLAdd Int Int
 	 | LLMul Int Int
+	 | LLDec Int
+	 | LLInc Int
 --Return: Have the return value ready in register 0!
 	 | LLRet
      deriving (Show, Eq)
@@ -31,6 +33,10 @@ llStatlist ((Declare var) : ss) (destreg, maxreg)
 llStatlist ((Assign var exp) : ss) (destreg, maxreg)
   = (llExp exp (destreg, maxreg)) ++ [(LLCpVarReg var destreg)]
 	++ (llStatlist ss (destreg, maxreg))
+llStatlist ((Decrease var) : ss) (destreg, maxreg)
+  = [(LLCpRegVar destreg var), (LLDec destreg), (LLCpVarReg var destreg)]
+llStatlist ((Increase var) : ss) (destreg, maxreg)
+  = [(LLCpRegVar destreg var), (LLInc destreg), (LLCpVarReg var destreg)]
 llStatlist ((Return exp) : ss) (destreg, maxreg)
   = (llExp exp (destreg, maxreg)) ++ [LLRet]
 llStatlist [] _
