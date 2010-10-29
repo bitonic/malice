@@ -71,6 +71,10 @@ convertStatementToC (Declare var)
   = "unsigned char " ++ var ++ ";\n"
 convertStatementToC (Assign var exp)
   = var ++ " = " ++ (convertExpToC exp) ++ ";\n"
+convertStatementToC (Decrease var)
+  = var ++ "--;\n"
+convertStatementToC (Increase var)
+  = var ++ "++;\n"
 convertStatementToC (Return exp)
   = "return " ++ (convertExpToC exp) ++ ";\n"
 
