@@ -1,17 +1,7 @@
 module Codegen where
 
-import System ( getArgs )
-import Parser
-import Scanner
 import List
-
-main = do 
-  [fn] <- getArgs
-  f <- readFile fn
-  let code = simplifyProgram $ maliceParser $ maliceScanner f
-  putStrLn $ show code
-  putStrLn $ convertProgramToC code
---  putStrLn $ show (llProgram code)
+import Parser
 
 
 
@@ -32,9 +22,9 @@ data LLcmd
 
 
 llProgram :: Program -> [LLcmd]
-llProgram (Program statlist retexp)
+llProgram (Program statlist)
   = (llStatlist statlist (0, 4))
-	++ (llExp retexp (0, 4)) ++ [LLRet]
+--	++ (llExp retexp (0, 4)) ++ [LLRet]
 
 llStatlist :: StatementList -> (Int, Int) -> [LLcmd]
 llStatlist ((Declare var) : ss) (destreg, maxreg)
@@ -68,10 +58,10 @@ llBinOp "*" i j
 
 
 convertProgramToC :: Program -> String
-convertProgramToC (Program statlist retval)
+convertProgramToC (Program statlist)
   = "int main()\n{\n"
 	 ++ concat (map (((:) '\t') . convertStatementToC) statlist)
-	 ++ "\n\treturn " ++ (convertExpToC retval)
+--	 ++ "\n\treturn " ++ (convertExpToC retval)
 	 ++ ";\n}\n"
 
 convertStatementToC :: Statement -> String
@@ -94,8 +84,8 @@ convertExpToC (Var var)
 
 
 simplifyProgram :: Program -> Program
-simplifyProgram (Program statlist retval)
-  = (Program (sortDecls statlist) retval)
+simplifyProgram (Program statlist)
+  = (Program (sortDecls statlist))
 
 sortDecls :: StatementList -> StatementList
 sortDecls xs
