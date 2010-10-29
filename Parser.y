@@ -34,6 +34,8 @@ import Scanner
 
 %%
 
+-- whatever
+
 Program       : StatementList                 { Program $1 }
 
 StatementList : Statement sep                 { [$1] }
