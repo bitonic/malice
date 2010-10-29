@@ -4,7 +4,10 @@ import Parser
 
 maliceSemantics :: Program -> IO Bool
 maliceSemantics (Program sl)
-  = maliceSemanticsSL sl []
+  = do case (last sl) of
+         (Return _) -> maliceSemanticsSL sl []
+         _          -> do putStrLn "Semantics error: The program does not end with a return statement."
+                          return False
     
 checkDeclaration :: String -> [String] -> IO Bool -> IO Bool
 checkDeclaration var vars f
@@ -30,14 +33,17 @@ maliceSemanticsSL (Increase var : sl) vars
   = checkDeclaration var vars (maliceSemanticsSL sl vars)
 maliceSemanticsSL [Return e] vars              
   = maliceSemanticsExp e vars
+maliceSemanticsSL (Return _ : sl) _    
+  = do putStrLn "Semantics error: The program does not end with the return statement."
+       return False
     
 maliceSemanticsExp :: Exp -> [String] -> IO Bool    
-maliceSemanticsExp (UnOp var e) vars
-  = checkDeclaration var vars (maliceSemanticsExp e vars)
-maliceSemanticsExp (BinOp var e1 e2) vars    
-  = checkDeclaration var vars (do maliceSemanticsExp e1 vars
-                                  maliceSemanticsExp e2 vars)
+maliceSemanticsExp (UnOp _ e) vars
+  = maliceSemanticsExp e vars
+maliceSemanticsExp (BinOp _ e1 e2) vars    
+  = do maliceSemanticsExp e1 vars
+       maliceSemanticsExp e2 vars
 maliceSemanticsExp (Var var) vars
-  checkDeclaration var vars (return True)
-maliceSemantics (Int _) _  
+  = checkDeclaration var vars (return True)
+maliceSemanticsExp (Int _) _  
   = return True
