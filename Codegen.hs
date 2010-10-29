@@ -1,4 +1,4 @@
-module Main where
+module Codegen where
 
 import System ( getArgs )
 import Parser
