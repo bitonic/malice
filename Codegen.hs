@@ -24,7 +24,6 @@ data LLcmd
 llProgram :: Program -> [LLcmd]
 llProgram (Program statlist)
   = (llStatlist statlist (0, 4))
---	++ (llExp retexp (0, 4)) ++ [LLRet]
 
 llStatlist :: StatementList -> (Int, Int) -> [LLcmd]
 llStatlist ((Declare var) : ss) (destreg, maxreg)
@@ -32,6 +31,8 @@ llStatlist ((Declare var) : ss) (destreg, maxreg)
 llStatlist ((Assign var exp) : ss) (destreg, maxreg)
   = (llExp exp (destreg, maxreg)) ++ [(LLCpVarReg var destreg)]
 	++ (llStatlist ss (destreg, maxreg))
+llStatlist ((Return exp) : ss) (destreg, maxreg)
+  = (llExp exp (destreg, maxreg)) ++ [LLRet]
 llStatlist [] _
   = []
 
@@ -57,18 +58,21 @@ llBinOp "*" i j
 
 
 
+-- The following is the MAlice2C converter. /max
+
 convertProgramToC :: Program -> String
 convertProgramToC (Program statlist)
   = "int main()\n{\n"
-	 ++ concat (map (((:) '\t') . convertStatementToC) statlist)
---	 ++ "\n\treturn " ++ (convertExpToC retval)
-	 ++ ";\n}\n"
+	 ++ concat (map (((:) '\t') . convertStatementToC) (sortDecls statlist))
+	 ++ "}\n"
 
 convertStatementToC :: Statement -> String
 convertStatementToC (Declare var)
   = "unsigned char " ++ var ++ ";\n"
 convertStatementToC (Assign var exp)
   = var ++ " = " ++ (convertExpToC exp) ++ ";\n"
+convertStatementToC (Return exp)
+  = "return " ++ (convertExpToC exp) ++ ";\n"
 
 convertExpToC :: Exp -> String
 convertExpToC (BinOp op exp1 exp2)
@@ -79,13 +83,6 @@ convertExpToC (Int i)
   = show i
 convertExpToC (Var var)
   = var
-
-
-
-
-simplifyProgram :: Program -> Program
-simplifyProgram (Program statlist)
-  = (Program (sortDecls statlist))
 
 sortDecls :: StatementList -> StatementList
 sortDecls xs
