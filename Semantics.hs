@@ -34,7 +34,7 @@ maliceSemanticsSL (Increase var : sl) vars
 maliceSemanticsSL [Return e] vars              
   = maliceSemanticsExp e vars
 maliceSemanticsSL (Return _ : sl) _    
-  = do putStrLn "Semantics error: The program does not end with the return statement."
+  = do putStrLn "Semantics error: Return statement in illegal position."
        return False
     
 maliceSemanticsExp :: Exp -> [String] -> IO Bool    
