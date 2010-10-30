@@ -24,7 +24,7 @@ maliceSemanticsSL (Assign var e : sl) vars
                                     else return False)
 maliceSemanticsSL (Declare var : sl) vars                 
   = do if elem var vars
-         then do putStrLn ("Semantics error: Variable " ++ var ++ " declared twice.")
+         then do putStrLn ("Semantics error: Variable \"" ++ var ++ "\" declared twice.")
                  return False
          else maliceSemanticsSL sl (var : vars)
 maliceSemanticsSL (Decrease var : sl) vars
