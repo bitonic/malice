@@ -14,5 +14,6 @@ main
        putStrLn ("Abstract Syntax Tree:\n" ++ (show ast) ++ "\n")
        sem <- maliceSemantics ast
        if sem
-         then putStrLn ("The semantics test was successful.\n\n" ++ "Generated C code:\n" ++ (convertProgramToC ast))
+         --then putStrLn ("The semantics test was successful.\n\n" ++ "Generated C code:\n" ++ (convertProgramToC ast))
+		 then putStrLn $ show $ llProgram ast
          else putStrLn "Semantics test failed."
