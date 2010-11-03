@@ -2,6 +2,7 @@ module Main where
 
 import System ( getArgs )
 import CodeGen
+import Code2C
 import Semantics
 import Parser
 import Scanner
