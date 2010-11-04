@@ -15,7 +15,8 @@ import Scanner
 %left "~" "--" "++"
 %token
   sep                               { TSeparator _ }
-  declare                           { TDeclare _ }
+  declareInt                        { TDeclare IntType _ }
+  declareChar                       { TDeclare CharType _ }
   assign                            { TAssign _ }
   "+"                               { TOp _ "+" }
   "-"                               { TOp _ "-" }
@@ -30,6 +31,7 @@ import Scanner
   "++"                              { TOp _ "++" }
   ret                               { TRet _ }
   var                               { TVar _ $$ }
+  ch                                { TChar _ $$ }
   int                               { TInt _ $$ }
 
 %%
@@ -42,7 +44,8 @@ StatementList : Statement sep                 { [$1] }
               | Statement sep StatementList   { $1 : $3 }
 
 Statement     : var assign Exp                { Assign $1 $3 }
-              | var declare                   { Declare $1 }
+              | var declareInt                { Declare IntType $1 }
+              | var declareChar               { Declare CharType $1 }
               | var "--"                      { Decrease $1 }
               | var "++"                      { Increase $1 }
               | ret Exp                       { Return $2 }
@@ -57,6 +60,7 @@ Exp           : Exp "|" Exp                   { BinOp "|" $1 $3 }
               | Exp "%" Exp                   { BinOp "%" $1 $3 }
               | "~" Exp                       { UnOp "~" $2 }
               | var                           { Var $1 }
+              | ch                            { Char $1 }
               | int                           { Int $1 }
 
 {
@@ -75,7 +79,7 @@ type StatementList = [Statement]
 
 data Statement
      = Assign String Exp
-     | Declare String
+     | Declare MaliceType String
      | Decrease String
      | Increase String
      | Return Exp
@@ -85,6 +89,7 @@ data Exp
      = UnOp String Exp
      | BinOp String Exp Exp
      | Int Int
+     | Char Char
      | Var String
      deriving (Show, Eq)
 }

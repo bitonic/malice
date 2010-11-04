@@ -12,39 +12,48 @@ $operators = [\+\-\*\/\%\^\~\&\|]  -- mathematical operators
 -- Standard variable name, must start with character
 -- and can contain characters digits and underscores.
 @variable = $alpha [$alpha $digit \_]*
+@letter = \' . \'
 
 tokens :-
        $white+                                  ;
        too                                      ;
        @separator                               { \p s -> TSeparator p }
-       was $white+ a $white+ number             { \p s -> TDeclare p }
+       was $white+ a $white+ number             { \p s -> TDeclare IntType p }
+       was $white+ a $white+ letter             { \p s -> TDeclare CharType p }
        became                                   { \p s -> TAssign p }
        $operators                               { \p s -> TOp p s }
        drank                                    { \p s -> TOp p "--" }
        ate                                      { \p s -> TOp p "++" }
        Alice $white+ found $white+              { \p s -> TRet p }
+       @letter                                  { \p s -> TChar p (s !! 1) }
        $alpha [$alpha $digit \_]*               { \p s -> TVar p s}
        $digit+                                  { \p s -> TInt p (read s) }
        
 
 {
+data MaliceType
+     = IntType
+     | CharType
+     deriving (Eq,Show)
+       
 data Token
      = TAssign AlexPosn
-     | TDeclare AlexPosn
+     | TDeclare MaliceType AlexPosn
      | TSeparator AlexPosn
      | TVar AlexPosn String
+     | TChar AlexPosn Char
      | TInt AlexPosn Int
      | TRet AlexPosn
      | TOp AlexPosn String
      deriving (Eq,Show)
 
 tokenPosn (TAssign p) = p
-tokenPosn (TDeclare p) = p
+tokenPosn (TDeclare _ p) = p
 tokenPosn (TSeparator p) = p
-tokenPosn (TVar p s) = p
-tokenPosn (TInt p s) = p
+tokenPosn (TVar p _) = p
+tokenPosn (TInt p _) = p
 tokenPosn (TRet p) = p
-tokenPosn (TOp p s) = p
+tokenPosn (TOp p _) = p
 
 getLineNum (AlexPn _ l c) = l
 
