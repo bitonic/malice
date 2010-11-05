@@ -1,26 +1,49 @@
 module Semantics where
 
 import Parser
-import Data.Map as Map
-import qualified Data.Map as M
 
-type SymbTable = Map String MaliceType
-type ErrorMessage = String
-
-maliceSemantics :: Program -> (Maybe SymbTable, String)
-maliceSemantics (Program sl)    
-  = case last sl of
-         (Return _) -> maliceSemanticsSL sl M.empty
-         _          -> (Nothing, "The program does not end with" ++
-                                 " a return statement."
-                                 
-maliceSemanticsSL :: StatementList -> SymbTable -> (Maybe SymbTable, String)
-maliceSemanticsSL [Return _] t    
-  = (Just t, "")
-maliceSemanticsSL (Assign v e : sl) t    
-  | eTable == Nothing   = (eTable, eType, eError)
-  | checkType v eType t = maliceSemanticsSL sl t
-  | otherwise           = (Nothing, "Type error: variable"
-  where
-    (eTable, eType, eError) = maliceSemanticsExp e t
-      
+maliceSemantics :: Program -> IO Bool
+maliceSemantics (Program sl)
+  = do case (last sl) of
+         (Return _) -> maliceSemanticsSL sl []
+         _          -> do putStrLn "Semantics error: The program does not end with a return statement."
+                          return False
+    
+checkDeclaration :: String -> [String] -> IO Bool -> IO Bool
+checkDeclaration var vars f
+  = do if elem var vars
+         then f
+         else do putStrLn ("Semantics error: Variable " ++ var ++ " is used before it is declared.")
+                 return False
+                 
+maliceSemanticsSL :: StatementList -> [String] -> IO Bool
+maliceSemanticsSL (Assign var e : sl) vars
+  = checkDeclaration var vars (do eSem <- maliceSemanticsExp e vars
+                                  if eSem
+                                    then maliceSemanticsSL sl vars
+                                    else return False)
+maliceSemanticsSL (Declare var : sl) vars                 
+  = do if elem var vars
+         then do putStrLn ("Semantics error: Variable \"" ++ var ++ "\" declared twice.")
+                 return False
+         else maliceSemanticsSL sl (var : vars)
+maliceSemanticsSL (Decrease var : sl) vars
+  = checkDeclaration var vars (maliceSemanticsSL sl vars)
+maliceSemanticsSL (Increase var : sl) vars
+  = checkDeclaration var vars (maliceSemanticsSL sl vars)
+maliceSemanticsSL [Return e] vars              
+  = maliceSemanticsExp e vars
+maliceSemanticsSL (Return _ : sl) _    
+  = do putStrLn "Semantics error: Return statement in illegal position."
+       return False
+    
+maliceSemanticsExp :: Exp -> [String] -> IO Bool    
+maliceSemanticsExp (UnOp _ e) vars
+  = maliceSemanticsExp e vars
+maliceSemanticsExp (BinOp _ e1 e2) vars    
+  = do maliceSemanticsExp e1 vars
+       maliceSemanticsExp e2 vars
+maliceSemanticsExp (Var var) vars
+  = checkDeclaration var vars (return True)
+maliceSemanticsExp (Int _) _  
+  = return True
