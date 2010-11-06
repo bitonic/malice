@@ -1,10 +1,13 @@
 module MaliceParser
        (
-         p_text
-       , parseFromFile
+         mainparser
        ) where
 
-import ApplicativeParsec
+import Control.Monad (liftM)
+import Text.ParserCombinators.Parsec
+import Text.ParserCombinators.Parsec.Expr
+import Text.ParserCombinators.Parsec.Token
+import Text.ParserCombinators.Parsec.Language
 
 data AST = Program [Statement]
          deriving (Show, Eq)
@@ -13,113 +16,78 @@ data MaliceType = Int32 | Char8
                 deriving (Show, Eq)
 
 data Statement
-     = Assign String Exp
+     = Assign String Expr
      | Declare MaliceType String
      | Decrease String
      | Increase String
-     | Return Exp
+     | Return Expr
      deriving (Show, Eq)
                         
-data Exp
-     = UnOp Char Exp
-     | BinOp Char Exp Exp
-     | Int Int
+data Expr
+     = UnOp String Expr
+     | BinOp String Expr Expr
+     | Int Integer
      | Char Char
      | Var String
      deriving (Show, Eq)
+
+operators = "+-*/%^&|"
+
+def = emptyDef { identStart = letter
+               , identLetter = (alphaNum <|> char '_')
+               , opStart = oneOf operators
+               , opLetter = oneOf operators
+               }
                  
-p_text :: CharParser () AST
-p_text =
-  sepBy p_statement p_separator >>= return . Program
+TokenParser { identifier = p_identifier
+            , operator = p_operator
+            , reservedOp = p_reservedOp
+            , integer = p_integer
+            , whiteSpace = p_white
+            , parens = p_parens
+            , lexeme = p_lexeme
+            } = makeTokenParser def
   
-p_separator :: CharParser () String
-p_separator = choice [ string "and"
-                     , string "but"
-                     , string "then"
-                     , string "."
-                     , string ","
-                     ]
-              <?> "statement separator"
-              
-p_statement :: CharParser () Statement
-p_statement = try p_assign
-          <|> try p_declare
-          <|> try p_decinc
-          <|> p_return
+p_expr = buildExpressionParser table term <?> "expression"
+table = [ [Prefix (liftM UnOp p_operator)]
+        , [Infix (liftM BinOp p_operator) AssocLeft]
+        ]
+term = p_parens p_expr
+   <|> liftM Var p_identifier        
+   <|> liftM Int p_integer
+  
+p_separators = choice [ p_string "and"
+                      , p_string "but"
+                      , p_string "then"
+                      , p_string "."
+                      , p_string ","
+                      ]
+               <?> "statement separator"
+
+mainparser :: Parser AST
+mainparser = p_white >> (liftM Program (p_statement `sepBy` p_separators))
+
+p_statement = try p_return
+          <|> do { v <- p_identifier;
+                   p_statement_id v;
+                 }
           <?> "statement"
 
-------------------------------------              
--- STATEMENTS
-------------------------------------
+p_return = p_string "Alice found" >> liftM Return p_expr
 
-p_assign :: CharParser () Statement
-p_assign = do
-  v <- spacesAfter p_variable
-  p_skips "became"
-  p_expression >>= return . Assign v
-  
-varCharsStart = ['a'..'z'] ++ ['A'..'Z']
-varChars = varCharsStart ++ ['0'..'9'] ++ "_"
+p_statement_id v = try (p_incdec v)
+               <|> try (p_declare v)
+               <|> p_assign v
 
-p_variable
-  = oneOf varCharsStart >>= (\c -> many (oneOf varChars) >>= return . ((:) c))
+p_incdec v = choice [ p_string "ate" >> return (Increase v)
+                    , p_string "drank" >> return (Decrease v)
+                    ]
+           
+p_declare v = do p_string "was a"
+                 choice [ p_string "number" >> return (Declare Int32 v)
+                        , p_string "letter" >> return (Declare Char8 v)
+                        ]
+                
+p_assign v = p_string "became" >> liftM (Assign v) p_expr
 
-p_declare :: CharParser () Statement
-p_declare = do
-  v <- spacesAfter p_variable
-  p_skips "was a"
-  choice [ string "number" >> return (Declare Int32 v)
-         , string "letter" >> return (Declare Char8 v)
-         ]
-  <?> "type"
-   
-p_decinc = do
-  v <- spacesAfter p_variable
-  choice [ string "ate" >> return (Increase v)
-         , string "drank" >> return (Decrease v)
-         ]
-  <?> "operator"
-
-p_return =
-  p_skips "Alice found" >> (p_expression >>= return . Return)
-  
------------------------------------
--- EXPRESSIONS
------------------------------------
-
-p_expression :: CharParser () Exp
-p_expression = try p_binop
-           <|> try p_unop
-           <|> (p_variable >>= (return . Var))
-           <|> (many1 digit >>= (return . Int . read))
-           <|> (between (char '\'') (char '\'') anyChar >>= (return . Char))
-           <?> "expression"
-               
-operators = oneOf "+-*/%^&|"
-
-p_binop = do
-  e1 <- p_variable >>= (return . Var)
-  spaces
-  op <- operators
-  spaces
-  e2 <- p_variable >>= (return . Var)
-  spaces
-  return (BinOp op e1 e2)
-
-p_unop = do
-  e1 <- p_variable >>= (return . Var)
-  spaces
-  op <- operators
-  spaces
-  return (UnOp op e1)
-  
-p_skips :: String -> CharParser () ()
-p_skips s = case ws of
-                 [w'] -> string w >> spaces1 >> string w' >> spaces
-                 _    -> string w >> spaces1 >> p_skips (unwords ws)
-    where (w : ws) = words s
-    
-spaces1 = many1 space
-
-spacesAfter p =
-  p >>= (\v -> spaces1 >> return v)
+p_string = p_lexeme . string
