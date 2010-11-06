@@ -55,15 +55,18 @@ TokenParser { identifier = p_identifier
 
 -- Actual parser
 mainparser :: Parser AST
-mainparser = p_white >> liftM Program (p_statement `sepBy` p_separators)
+mainparser = do p_white
+                sl <- many1 (do {s <- p_statement;
+                                 p_separator >> return s})
+                return (Program sl)
 
-p_separators = choice [ p_string "and"
-                      , p_string "but"
-                      , p_string "then"
-                      , p_string "."
-                      , p_string ","
-                      ]
-               <?> "statement separator"
+p_separator = choice [ p_string "and"
+                     , p_string "but"
+                     , p_string "then"
+                     , p_string "."
+                     , p_string ","
+                     ]
+              <?> "statement separator"
 
 
 -- Statement
