@@ -9,6 +9,8 @@ import Text.ParserCombinators.Parsec.Expr
 import Text.ParserCombinators.Parsec.Token
 import Text.ParserCombinators.Parsec.Language
 
+-- Abstact Syntax Tree definition
+
 data AST = Program [Statement]
          deriving (Show, Eq)
 
@@ -31,14 +33,16 @@ data Expr
      | Var String
      deriving (Show, Eq)
 
+-- Language characteristics
+
 operators = "+-*/%^&|"
 
 def = emptyDef { identStart = letter
-               , identLetter = (alphaNum <|> char '_')
+               , identLetter = alphaNum <|> char '_'
                , opStart = oneOf operators
                , opLetter = oneOf operators
                }
-                 
+-- Generate useful parsers with makeTokenParser                 
 TokenParser { identifier = p_identifier
             , operator = p_operator
             , reservedOp = p_reservedOp
@@ -47,15 +51,11 @@ TokenParser { identifier = p_identifier
             , parens = p_parens
             , lexeme = p_lexeme
             } = makeTokenParser def
-  
-p_expr = buildExpressionParser table term <?> "expression"
-table = [ [Prefix (liftM UnOp p_operator)]
-        , [Infix (liftM BinOp p_operator) AssocLeft]
-        ]
-term = p_parens p_expr
-   <|> liftM Var p_identifier        
-   <|> liftM Int p_integer
-  
+
+-- Actual parser
+mainparser :: Parser AST
+mainparser = p_white >> liftM Program (p_statement `sepBy` p_separators)
+
 p_separators = choice [ p_string "and"
                       , p_string "but"
                       , p_string "then"
@@ -64,8 +64,6 @@ p_separators = choice [ p_string "and"
                       ]
                <?> "statement separator"
 
-mainparser :: Parser AST
-mainparser = p_white >> (liftM Program (p_statement `sepBy` p_separators))
 
 p_statement = try p_return
           <|> do { v <- p_identifier;
@@ -78,7 +76,7 @@ p_return = p_string "Alice found" >> liftM Return p_expr
 p_statement_id v = try (p_incdec v)
                <|> try (p_declare v)
                <|> p_assign v
-
+                   
 p_incdec v = choice [ p_string "ate" >> return (Increase v)
                     , p_string "drank" >> return (Decrease v)
                     ]
@@ -90,4 +88,12 @@ p_declare v = do p_string "was a"
                 
 p_assign v = p_string "became" >> liftM (Assign v) p_expr
 
-p_string = p_lexeme . string
+p_string = p_lexeme . string                   
+
+p_expr = buildExpressionParser table term <?> "expression"
+table = [ [Prefix (liftM UnOp p_operator)]
+        , [Infix (liftM BinOp p_operator) AssocLeft]
+        ]
+term = (lookAhead p_operator >> p_expr)
+   <|> liftM Var p_identifier
+   <|> liftM Int p_integer
