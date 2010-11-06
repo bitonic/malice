@@ -41,6 +41,7 @@ def = emptyDef { identStart = letter
                , identLetter = alphaNum <|> char '_'
                , opStart = oneOf operators
                , opLetter = oneOf operators
+               , reservedOpNames = [[op] | op <- operators]
                }
 -- Generate useful parsers with makeTokenParser                 
 TokenParser { identifier = p_identifier
@@ -65,6 +66,7 @@ p_separators = choice [ p_string "and"
                <?> "statement separator"
 
 
+-- Statement
 p_statement = try p_return
           <|> do { v <- p_identifier;
                    p_statement_id v;
@@ -88,12 +90,25 @@ p_declare v = do p_string "was a"
                 
 p_assign v = p_string "became" >> liftM (Assign v) p_expr
 
-p_string = p_lexeme . string                   
-
+-- Expression
 p_expr = buildExpressionParser table term <?> "expression"
-table = [ [Prefix (liftM UnOp p_operator)]
-        , [Infix (liftM BinOp p_operator) AssocLeft]
+table = [ [prefixOp "~"]
+        , map infixOp ["*", "/", "%"]
+        , map infixOp ["+", "-"]
+        , [infixOp "&"]
+        , [infixOp "^"]
+        , [infixOp "|"]
         ]
+
+prefixOp op
+  = Prefix (p_reservedOp op >> return (UnOp op))
+    
+infixOp op    
+  = Infix (p_reservedOp op >> return (BinOp op)) AssocLeft
+    
 term = (lookAhead p_operator >> p_expr)
    <|> liftM Var p_identifier
    <|> liftM Int p_integer
+   
+-- Utils   
+p_string = p_lexeme . string
