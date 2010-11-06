@@ -30,7 +30,7 @@ data Exp
                  
 p_text :: CharParser () AST
 p_text =
-  Program <$> (sepBy p_statement (p_separator <* spaces))
+  sepBy p_statement p_separator >>= return . Program
   
 p_separator :: CharParser () String
 p_separator = choice [ string "and"
@@ -42,12 +42,11 @@ p_separator = choice [ string "and"
               <?> "statement separator"
               
 p_statement :: CharParser () Statement
-p_statement = choice [ p_assign
-                     , p_declare
-                     , p_decinc
-                     , p_return
-                     ]
-              <?> "statement"
+p_statement = try p_assign
+          <|> try p_declare
+          <|> try p_decinc
+          <|> p_return
+          <?> "statement"
 
 ------------------------------------              
 -- STATEMENTS
@@ -55,67 +54,72 @@ p_statement = choice [ p_assign
 
 p_assign :: CharParser () Statement
 p_assign = do
-  v <- p_variable
-  (spaces *> p_skips "became" *> (
-      (spaces *> p_expression) >>= return . Assign v))
+  v <- spacesAfter p_variable
+  p_skips "became"
+  p_expression >>= return . Assign v
   
-varChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ "_"
+varCharsStart = ['a'..'z'] ++ ['A'..'Z']
+varChars = varCharsStart ++ ['0'..'9'] ++ "_"
 
-p_variable = many1 (oneOf varChars)
+p_variable
+  = oneOf varCharsStart >>= (\c -> many (oneOf varChars) >>= return . ((:) c))
 
 p_declare :: CharParser () Statement
 p_declare = do
-  v <- p_variable
-  (spaces *> p_skips "was a" *>
-   (string "number" >> return (Declare Int32 v)
-    <|> (string "letter" >> return (Declare Char8 v))
-    <?> "type"))
+  v <- spacesAfter p_variable
+  p_skips "was a"
+  choice [ string "number" >> return (Declare Int32 v)
+         , string "letter" >> return (Declare Char8 v)
+         ]
+  <?> "type"
    
 p_decinc = do
-  v <- p_variable
-  spaces
-  (string "++" >> return (Decrease v)
-   <|> (string "--" >> return (Increase v))
-   <?> "operator")
+  v <- spacesAfter p_variable
+  choice [ string "ate" >> return (Increase v)
+         , string "drank" >> return (Decrease v)
+         ]
+  <?> "operator"
 
-p_return = do
-  (p_skips "Alice found" *> (
-      do e <- p_expression
-         return (Return e)))
+p_return =
+  p_skips "Alice found" >> (p_expression >>= return . Return)
   
 -----------------------------------
 -- EXPRESSIONS
 -----------------------------------
 
 p_expression :: CharParser () Exp
-p_expression = choice [ p_binop
-                      , p_unop
-                      , p_variable >>= (return . Var)
-                      , many1 digit >>= (return . Int . read)
-                      , between (char '\'') (char '\'') anyChar >>= (return . Char)
-                      ]
-               <?> "expression"
+p_expression = try p_binop
+           <|> try p_unop
+           <|> (p_variable >>= (return . Var))
+           <|> (many1 digit >>= (return . Int . read))
+           <|> (between (char '\'') (char '\'') anyChar >>= (return . Char))
+           <?> "expression"
                
 operators = oneOf "+-*/%^&|"
 
 p_binop = do
-  e1 <- p_expression
+  e1 <- p_variable >>= (return . Var)
   spaces
   op <- operators
   spaces
-  e2 <- p_expression
+  e2 <- p_variable >>= (return . Var)
   spaces
   return (BinOp op e1 e2)
 
 p_unop = do
-  e1 <- p_expression
+  e1 <- p_variable >>= (return . Var)
   spaces
   op <- operators
   spaces
   return (UnOp op e1)
   
 p_skips :: String -> CharParser () ()
-p_skips [] = return ()
-p_skips s = string w *> spaces *> p_skips (unwords ws)
+p_skips s = case ws of
+                 [w'] -> string w >> spaces1 >> string w' >> spaces
+                 _    -> string w >> spaces1 >> p_skips (unwords ws)
     where (w : ws) = words s
     
+spaces1 = many1 space
+
+spacesAfter p =
+  p >>= (\v -> spaces1 >> return v)
