@@ -12,13 +12,13 @@ import Text.ParserCombinators.Parsec.Language
 
 -- Abstact Syntax Tree definition
 
-data AST = Program [Statement]
+data AST = Program StatementList
          deriving (Show, Eq)
 
 data MaliceType = Int32 | Char8
                 deriving (Show, Eq)
 
-type StatementList = [Statement]
+type StatementList = [(SourcePos, Statement)]
 
 data Statement
      = Assign String Expr
@@ -73,11 +73,14 @@ p_separator = choice [ p_string "and"
 
 
 -- Statement
-p_statement = try p_return
-          <|> do { v <- p_identifier;
-                   p_statement_id v;
-                 }
-          <?> "statement"
+p_statement = do
+  pos <- getPosition
+  s <- (try p_return
+        <|> do { v <- p_identifier;
+                 p_statement_id v;
+               }
+        <?> "statement")
+  return (pos, s)
 
 p_return = p_string "Alice found" >> liftM Return p_expr
 
@@ -109,7 +112,7 @@ table = [ [prefixOp "~"]
 prefixOp op
   = Prefix (p_reservedOp op >> return (UnOp op))
     
-infixOp op    
+infixOp op
   = Infix (p_reservedOp op >> return (BinOp op)) AssocLeft
     
 term = (lookAhead p_operator >> p_expr)
