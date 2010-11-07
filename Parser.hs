@@ -1,7 +1,9 @@
 module Parser
        (
          maliceParser,
-         AST, MaliceType, StatementList, Statement, Expr
+         AST, MaliceType, StatementList, Statement, Expr,
+         ASTPos, StatementListPos,
+         unPosAST
        ) where
 
 import Control.Monad (liftM)
@@ -11,14 +13,19 @@ import Text.ParserCombinators.Parsec.Token
 import Text.ParserCombinators.Parsec.Language
 
 -- Abstact Syntax Tree definition
+-- The --Pos ones are used in the semantics, so that we
+-- can have nice error messages.
 
 data AST = Program StatementList
-         deriving (Show, Eq)
+
+data ASTPos = ProgramPos StatementListPos
+            deriving (Show, Eq)
 
 data MaliceType = Int32 | Char8
                 deriving (Show, Eq)
 
-type StatementList = [(SourcePos, Statement)]
+type StatementList = [Statement]
+type StatementListPos = [(SourcePos, Statement)]
 
 data Statement
      = Assign String Expr
@@ -35,7 +42,13 @@ data Expr
      | Char Char
      | Var String
      deriving (Show, Eq)
+              
+-- Converts from AST with positions to a AST without
+unPosAST :: ASTPos -> AST              
+unPosAST (ProgramPos sl) = Program $ map unPosS sl
 
+unPosS (_, s) = s
+              
 -- Language characteristics
 
 operators = "+-*/%^&|"
@@ -57,11 +70,11 @@ TokenParser { identifier = p_identifier
             } = makeTokenParser def
 
 -- Actual parser
-mainparser :: Parser AST
+mainparser :: Parser ASTPos
 mainparser = do p_white
                 sl <- many1 (do {s <- p_statement;
                                  p_separator >> return s})
-                return (Program sl)
+                return (ProgramPos sl)
 
 p_separator = choice [ p_string "and"
                      , p_string "but"
@@ -123,5 +136,5 @@ term = (lookAhead p_operator >> p_expr)
 p_string = p_lexeme . string
 
 -- parser from string
-maliceParser :: String -> Either ParseError AST
-maliceParser s = parse mainparser "(unknown)" s
+maliceParser :: String -> String -> Either ParseError ASTPos
+maliceParser s f = parse mainparser f s
