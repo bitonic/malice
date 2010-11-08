@@ -38,7 +38,7 @@ data Statement
      | Increase String
      | Return Expr
      deriving (Show, Eq)
-                        
+
 data Expr
      = UnOp String Expr
      | BinOp String Expr Expr
@@ -62,8 +62,10 @@ def = emptyDef { identStart = letter
                , opStart = oneOf operators
                , opLetter = oneOf operators
                , reservedOpNames = [[op] | op <- operators]
+               , reservedNames = ["and", "but", "then", ".",
+                                  "too", "Alice", "found"]
                }
-      
+
 -- Generate useful parsers with makeTokenParser                 
 TokenParser { identifier = p_identifier
             , operator = p_operator
@@ -81,14 +83,15 @@ mainparser = do p_white
                                  p_separator >> return s})
                 return (ProgramPos sl)
 
-p_separator = choice [ p_string "and"
-                     , p_string "but"
-                     , p_string "then"
-                     , p_string "."
-                     , p_string ","
-                     ]
-              <?> "statement separator"
-
+p_separator = try (p_string "too" >> p_separator')
+          <|> p_separator'
+          <?> "statement separator"
+p_separator' = choice [ p_string "and"
+                      , p_string "but"
+                      , p_string "then"
+                      , p_string "."
+                      , p_string ","
+                      ]
 
 -- Statement
 p_statement = do
@@ -105,16 +108,16 @@ p_return = p_string "Alice" >> p_string "found" >> liftM Return p_expr
 p_statement_id v = try (p_incdec v)
                <|> try (p_declare v)
                <|> p_assign v
-                   
+
 p_incdec v = choice [ p_string "ate" >> return (Increase v)
                     , p_string "drank" >> return (Decrease v)
                     ]
-           
+
 p_declare v = do p_string "was a"
                  choice [ p_string "number" >> return (Declare MaliceInt v)
                         , p_string "letter" >> return (Declare MaliceChar v)
                         ]
-                
+
 p_assign v = p_string "became" >> liftM (Assign v) p_expr
 
 -- Expression
@@ -132,7 +135,7 @@ prefixOp op
     
 infixOp op
   = Infix (p_reservedOp op >> return (BinOp op)) AssocLeft
-    
+
 term = (lookAhead p_operator >> p_expr)
    <|> liftM Var p_identifier
    <|> liftM Int p_int32
@@ -140,8 +143,8 @@ term = (lookAhead p_operator >> p_expr)
 p_int32 = do
   int <- p_integer
   return (fromIntegral int :: Int32)
-   
--- Utils   
+
+-- Utils
 p_string = p_lexeme . string
 
 -- parser from string
