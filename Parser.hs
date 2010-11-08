@@ -1,8 +1,10 @@
-module Parser where
+module Parser
        (
          maliceParser,
-         AST, MaliceType, StatementList, Statement, Expr,
-         ASTPos, StatementListPos,
+         MaliceType(..),
+         AST(..), StatementList, Statement(..), Expr(..),
+         ASTPos(..), StatementListPos,
+         SourcePos(..),
          unPosAST,
        ) where
 
