@@ -6,6 +6,7 @@ import CodeCleanup
 import Data.Int (Int32)
 import Data.Bits
 import Data.Char
+import Reduce
 
 
 -- Always from right to left, Intel-style
@@ -96,8 +97,10 @@ llExp (UnOp op (Int imm)) (destreg, maxreg)
 llExp (UnOp op exp) (destreg, maxreg)
   = (llExp exp (destreg, maxreg))
 	++ [llUnOp op destreg]
---llExp (Int i) (destreg, maxreg)
---  = [LLCpRegImm destreg i]
+llExp (Int i) (destreg, maxreg)
+  = [LLCpRegImm destreg i]
+llExp (Char c) (destreg, maxreg)
+  = [LLCpRegImm destreg (fromIntegral (ord c) :: Int32)]
 llExp (Var var) (destreg, maxreg)
   = [LLCpRegVar destreg var]
 
@@ -144,30 +147,36 @@ evalUnOp "~" rd = 255 - 0
 truncate32to8 :: Int32 -> Int32
 truncate32to8 i = i .&. 255
 
-
-goCode :: Expr -> IO ()
-goCode exp
-  = putStrLn $ codeGenRetOnly exp
-
-codeGenRetOnly :: Expr -> String
-codeGenRetOnly (Int i) = asmEpilogue
-						++ "mov ebx, " ++ (show i) ++ " ; return value\n"
-						++ asmPrologue
-codeGenRetOnly (Char c) = asmEpilogue
-						++ "mov ebx, " ++ (show (ord c)) ++ " ; return value\n"
-						++ asmPrologue
+registerName :: Int -> String
+registerName 0 = "eax"
+registerName 1 = "ebx"
+registerName 2 = "ecx"
+registerName 3 = "edx"
+registerName 4 = "esi"
+registerName 5 = "edi"
 
 
-asmEpilogue :: String
-asmEpilogue = "\n"
-			++ "Code for Linux on IA-32:\n"
+codeGen :: AST -> String
+codeGen ast = asmPrologue ++ (codeGenLL $ llProgram $ reduceAST ast)
+
+
+codeGenLL :: [LLcmd] -> String
+codeGenLL (LLCpRegImm 0 i : LLRet : [])
+  = "mov ebx, " ++ (show i) ++ " ; program return code\n"
+	++ "mov eax, 0x1 ; syscall sys_exit\n"
+	++ "int 0x80\n"
+codeGenLL (LLCpRegImm r i : lls)
+  = "mov " ++ (registerName r) ++ ", " ++ (show i) ++ "\n"
+	++ (codeGenLL lls)
+codeGenLL (LLRet : lls) = "ret\n" ++ (codeGenLL lls)
+codeGenLL [ ] = ""
+
+
+asmPrologue :: String
+asmPrologue = "\n"
+			++ "; Code for Linux on IA-32:\n"
 			++ "\n"
 			++ "section .text ; start of code\n"
 			++ "global _start ; export the main function\n"
 			++ "\n"
 			++ "_start:\n"
-
-asmPrologue :: String
---asmPrologue = "ret\n"
-asmPrologue = "mov eax, 0x1 ; syscall sys_exit\n"
-				++ "int 0x80\n"

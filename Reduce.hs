@@ -9,13 +9,13 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Control.Monad.State
 
-reduceAST :: AST -> Expr
+reduceAST :: AST -> AST
 reduceAST (Program sl) = evalState (reduceSL sl) M.empty
   
-reduceSL :: StatementList -> State (Map String Expr) Expr  
+reduceSL :: StatementList -> State (Map String Expr) AST  
 reduceSL (Return e : sl) = do
   e <- reduceExpr e
-  return e
+  return (Program [Return e])
 reduceSL (Assign v e : sl) = do
   e <- reduceExpr e
   vars <- get
