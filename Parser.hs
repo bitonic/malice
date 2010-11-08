@@ -147,7 +147,7 @@ p_string = p_lexeme . string
 maliceParser :: String -> String -> Either ParseError ASTPos
 maliceParser s f = parse mainparser f s
 
-maliceParseFile :: String -> IO Either ParseError ASTPos
+maliceParseFile :: String -> IO (Either ParseError ASTPos)
 maliceParseFile f = do
   s <- readFile f
-  return maliceParser s f
+  return (maliceParser s f)
