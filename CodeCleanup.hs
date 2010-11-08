@@ -2,8 +2,6 @@ module CodeCleanup where
 
 import Parser
 
-
-
 sortDecls :: StatementList -> StatementList
 sortDecls xs
   = [ Declare t x | Declare t x <- xs ] ++ removeDecls xs

@@ -1,17 +1,22 @@
 module Main where
 
 import System ( getArgs )
+import System.FilePath.Posix ( takeBaseName, dropExtension )
+import System.Process ( runProcess, waitForProcess )
 import CodeGen
-import Code2C
 import Semantics
 import Parser
-import Scanner
+import Reduce
 
-main
-  = do [fn] <- getArgs
-       f <- readFile fn
-       let parseResult = maliceParser f fn in
-         case parseResult of
-           Left e    -> return ()
-           Right ast -> do putStrLn ("Abstract Syntax Tree:\n" ++ (show ast) ++ "\n")
-                           putStrLn $ show $ llProgram $ unPosAST ast
+main = do
+  [fn] <- getArgs
+  f <- readFile fn
+  case maliceParser f fn of
+    Left e    -> putStr ("Parse error:\n" ++ show e)
+    Right ast -> case maliceSemantics ast of
+      Left e   -> putStr ("Semantics error:\n" ++ show e)
+      Right st -> let bf = dropExtension $ takeBaseName fn in do {
+        writeFile (bf ++ ".asm") (codeGen $ reduceAST $ unPosAST ast);
+        putStrLn "Done."; }
+                                            
+                             

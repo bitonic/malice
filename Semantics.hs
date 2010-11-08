@@ -1,6 +1,6 @@
 module Semantics
        (
-         semantics,
+         maliceSemantics,
          SymbolTable
        )
        where

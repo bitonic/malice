@@ -1,5 +1,5 @@
 default:
-	ghc -o malice Parser.hs CodeCleanup.hs Code2C.hs CodeGen.hs Malice.hs
+	ghc -o malice Parser.hs Semantics.hs Reduce.hs CodeCleanup.hs CodeGen.hs Malice.hs --make
 
 clean:
 	rm -f *.hi
