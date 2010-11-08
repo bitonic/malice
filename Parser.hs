@@ -8,6 +8,7 @@ module Parser
          unPosAST,
        ) where
 
+import Data.Int (Int32)
 import Control.Monad (liftM)
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr
@@ -23,7 +24,7 @@ data AST = Program StatementList
 data ASTPos = ProgramPos StatementListPos
             deriving (Show, Eq)
 
-data MaliceType = Int32 | Char8
+data MaliceType = MaliceInt | MaliceChar
                 deriving (Show, Eq)
 
 type StatementList = [Statement]
@@ -40,7 +41,7 @@ data Statement
 data Expr
      = UnOp String Expr
      | BinOp String Expr Expr
-     | Int Integer
+     | Int Int32
      | Char Char
      | Var String
      deriving (Show, Eq)
@@ -109,8 +110,8 @@ p_incdec v = choice [ p_string "ate" >> return (Increase v)
                     ]
            
 p_declare v = do p_string "was a"
-                 choice [ p_string "number" >> return (Declare Int32 v)
-                        , p_string "letter" >> return (Declare Char8 v)
+                 choice [ p_string "number" >> return (Declare MaliceInt v)
+                        , p_string "letter" >> return (Declare MaliceChar v)
                         ]
                 
 p_assign v = p_string "became" >> liftM (Assign v) p_expr
@@ -133,7 +134,11 @@ infixOp op
     
 term = (lookAhead p_operator >> p_expr)
    <|> liftM Var p_identifier
-   <|> liftM Int p_integer
+   <|> liftM Int p_int32
+
+p_int32 = do
+  int <- p_integer
+  return (fromIntegral int :: Int32)
    
 -- Utils   
 p_string = p_lexeme . string
