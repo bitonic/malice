@@ -3,7 +3,9 @@ module CodeGen where
 import List
 import Parser
 import CodeCleanup
-
+import Data.Int (Int32)
+import Data.Bits
+import Data.Char
 
 
 -- Always from right to left, Intel-style
@@ -16,8 +18,8 @@ data LLcmd
 --Copy Dest Src
      = LLCpRegVar Register Variable
 	 | LLCpVarReg Variable Register
-	 | LLCpRegImm Register Int
-	 | LLCpVarImm Variable Int
+	 | LLCpRegImm Register Int32
+	 | LLCpVarImm Variable Int32
 --Set Dest value
 	 | LLAdd Register Register
 	 | LLSub Register Register
@@ -30,14 +32,14 @@ data LLcmd
 	 | LLDec Register
 	 | LLInc Register
 	 | LLNot Register
-	 | LLAddImm Register Int
-	 | LLSubImm Register Int
-	 | LLMulImm Register Int
-	 | LLDivImm Register Int
-	 | LLModImm Register Int
-	 | LLAndImm Register Int
-	 | LLOrImm Register Int
-	 | LLXOrImm Register Int
+	 | LLAddImm Register Int32
+	 | LLSubImm Register Int32
+	 | LLMulImm Register Int32
+	 | LLDivImm Register Int32
+	 | LLModImm Register Int32
+	 | LLAndImm Register Int32
+	 | LLOrImm Register Int32
+	 | LLXOrImm Register Int32
 --Return: Have the return value ready in register 0!
 	 | LLRet
      deriving (Show, Eq)
@@ -45,7 +47,7 @@ data LLcmd
 
 
 
-llProgram :: Program -> [LLcmd]
+llProgram :: AST -> [LLcmd]
 llProgram (Program statlist)
   = (llStatlist statlist (0, 4))
 
@@ -61,7 +63,7 @@ llStatlist [] _
 
 
 llStat :: Statement -> (Register, Register) -> [LLcmd]
-llStat (Declare var) (destreg, maxreg)
+llStat (Declare _ var) (destreg, maxreg)
   = []
 llStat (Assign var (Int imm)) (destreg, maxreg)
   = [LLCpVarImm var imm]
@@ -76,7 +78,7 @@ llStat (Return exp) (destreg, maxreg)
 
 
 
-llExp :: Exp -> (Register, Register) -> [LLcmd]
+llExp :: Expr -> (Register, Register) -> [LLcmd]
 llExp (BinOp op (Int imm1) (Int imm2)) (destreg, maxreg)
   = [LLCpRegImm destreg (evalBinOp op imm1 imm2)]
 llExp (BinOp op (Int imm) exp2) (destreg, maxreg)
@@ -102,74 +104,70 @@ llExp (Var var) (destreg, maxreg)
 
 
 llBinOp :: Operand -> Register -> Register -> LLcmd
-llBinOp "+" rd rs
-  = LLAdd rd rs
-llBinOp "-" rd rs
-  = LLSub rd rs
-llBinOp "*" rd rs
-  = LLMul rd rs
-llBinOp "/" rd rs
-  = LLDiv rd rs
-llBinOp "%" rd rs
-  = LLMod rd rs
-llBinOp "&" rd rs
-  = LLAnd rd rs
-llBinOp "|" rd rs
-  = LLAnd rd rs
-llBinOp "^" rd rs
-  = LLAnd rd rs
+llBinOp "+" rd rs = LLAdd rd rs
+llBinOp "-" rd rs = LLSub rd rs
+llBinOp "*" rd rs = LLMul rd rs
+llBinOp "/" rd rs = LLDiv rd rs
+llBinOp "%" rd rs = LLMod rd rs
+llBinOp "&" rd rs = LLAnd rd rs
+llBinOp "|" rd rs = LLAnd rd rs
+llBinOp "^" rd rs = LLAnd rd rs
 
 llUnOp :: Operand -> Register -> LLcmd
-llUnOp "~" rd
-  = LLNot rd
+llUnOp "~" rd = LLNot rd
 
-llBinOpImm :: Operand -> Register -> Int -> LLcmd
-llBinOpImm "+" rd imm
-  = LLAddImm rd imm
-llBinOpImm "-" rd imm
-  = LLSubImm rd imm
-llBinOpImm "*" rd imm
-  = LLMulImm rd imm
-llBinOpImm "/" rd imm
-  = LLDivImm rd imm
-llBinOpImm "%" rd imm
-  = LLModImm rd imm
-llBinOpImm "&" rd imm
-  = LLAndImm rd imm
-llBinOpImm "|" rd imm
-  = LLAndImm rd imm
-llBinOpImm "^" rd imm
-  = LLAndImm rd imm
+llBinOpImm :: Operand -> Register -> Int32 -> LLcmd
+llBinOpImm "+" rd imm = LLAddImm rd imm
+llBinOpImm "-" rd imm = LLSubImm rd imm
+llBinOpImm "*" rd imm = LLMulImm rd imm
+llBinOpImm "/" rd imm = LLDivImm rd imm
+llBinOpImm "%" rd imm = LLModImm rd imm
+llBinOpImm "&" rd imm = LLAndImm rd imm
+llBinOpImm "|" rd imm = LLAndImm rd imm
+llBinOpImm "^" rd imm = LLAndImm rd imm
 
-evalBinOp :: Operand -> Int -> Int -> Int
-evalBinOp "+" i j
-  = i + j
-evalBinOp "-" i j
-  = i - j
-evalBinOp "*" i j
-  = i * j
-evalBinOp "/" i j
-  = i `div` j
-evalBinOp "%" i j
-  = i `mod` j
---evalBinOp "&" i j
---  = i & j
---evalBinOp "|" i j
---  = i | j
---evalBinOp "^" i j
---  = i ^ j
+evalBinOp :: Operand -> Int32 -> Int32 -> Int32
+evalBinOp "+" i j = i + j
+evalBinOp "-" i j = i - j
+evalBinOp "*" i j = i * j
+evalBinOp "/" i j = i `div` j
+evalBinOp "%" i j = i `mod` j
+evalBinOp "&" i j = i .&. j
+evalBinOp "|" i j = i .|. j
+evalBinOp "^" i j = i `xor` j
 
-evalUnOp :: Operand -> Int -> Int
-evalUnOp "~" rd
-  = 255 - 0
+evalUnOp :: Operand -> Int32 -> Int32
+evalUnOp "~" rd = 255 - 0
 
-optimProgram :: Program -> Program
-optimProgram (Program statlist)
-  = Program (optimStatement statlist)
 
-optimStatement :: StatementList -> StatementList
-optimStatement ( s : ss )
-  = optimStatement ss
-optimStatement []
-  = []
 
+truncate32to8 :: Int32 -> Int32
+truncate32to8 i = i .&. 255
+
+
+goCode :: Expr -> IO ()
+goCode exp
+  = putStrLn $ codeGenRetOnly exp
+
+codeGenRetOnly :: Expr -> String
+codeGenRetOnly (Int i) = asmEpilogue
+						++ "mov ebx, " ++ (show i) ++ " ; return value\n"
+						++ asmPrologue
+codeGenRetOnly (Char c) = asmEpilogue
+						++ "mov ebx, " ++ (show (ord c)) ++ " ; return value\n"
+						++ asmPrologue
+
+
+asmEpilogue :: String
+asmEpilogue = "\n"
+			++ "Code for Linux on IA-32:\n"
+			++ "\n"
+			++ "section .text ; start of code\n"
+			++ "global _start ; export the main function\n"
+			++ "\n"
+			++ "_start:\n"
+
+asmPrologue :: String
+--asmPrologue = "ret\n"
+asmPrologue = "mov eax, 0x1 ; syscall sys_exit\n"
+				++ "int 0x80\n"

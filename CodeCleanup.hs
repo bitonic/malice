@@ -6,10 +6,10 @@ import Parser
 
 sortDecls :: StatementList -> StatementList
 sortDecls xs
-  = [ Declare x | Declare x <- xs ] ++ removeDecls xs
+  = [ Declare t x | Declare t x <- xs ] ++ removeDecls xs
 
 removeDecls :: StatementList -> StatementList
-removeDecls ((Declare x) : xs)
+removeDecls ((Declare t x) : xs)
   = removeDecls xs
 removeDecls (x:xs)
   = x : (removeDecls xs)
