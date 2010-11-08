@@ -1,9 +1,9 @@
-module Parser
+module Parser where
        (
          maliceParser,
          AST, MaliceType, StatementList, Statement, Expr,
          ASTPos, StatementListPos,
-         unPosAST
+         unPosAST,
        ) where
 
 import Control.Monad (liftM)
@@ -59,6 +59,7 @@ def = emptyDef { identStart = letter
                , opLetter = oneOf operators
                , reservedOpNames = [[op] | op <- operators]
                }
+      
 -- Generate useful parsers with makeTokenParser                 
 TokenParser { identifier = p_identifier
             , operator = p_operator
