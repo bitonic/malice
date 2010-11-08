@@ -20,6 +20,7 @@ import Text.ParserCombinators.Parsec.Language
 -- can have nice error messages.
 
 data AST = Program StatementList
+           deriving (Show, Eq)
 
 data ASTPos = ProgramPos StatementListPos
             deriving (Show, Eq)
@@ -147,7 +148,8 @@ p_string = p_lexeme . string
 maliceParser :: String -> String -> Either ParseError ASTPos
 maliceParser s f = parse mainparser f s
 
-maliceParseFile :: String -> IO (Either ParseError ASTPos)
+maliceParseFile :: String -> IO AST
 maliceParseFile f = do
   s <- readFile f
-  return (maliceParser s f)
+  let (Right astp) = maliceParser s f in
+    return (unPosAST astp)
