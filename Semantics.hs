@@ -14,8 +14,8 @@ import Control.Monad.State
 
 -- The operators types
 opTypes :: MaliceType -> [String]
-opTypes Int32 = ["+", "-", "*", "/", "%", "^", "&", "|"]
-opTypes Char8 = []
+opTypes MaliceInt = ["+", "-", "*", "/", "%", "^", "&", "|"]
+opTypes MaliceChar = []
 
 -- The symboltable
 type SymbolTable = Map String MaliceType
@@ -28,24 +28,21 @@ data SemError = SemError !SourcePos Message
 instance Error SemError where
   noMsg    = SemError (newPos "(unknown)" 0 0) "Unknown error."
   strMsg s = SemError (newPos "(unknown)" 0 0) s
-  
+
 instance Show SemError where
   show (SemError pos mess) =
     show pos ++ "\n" ++ mess ++ "\n"
 
-type SemMonad = Either SemError
-    
 -- The monad, derived from either, to catch errors
-type SemStateMonad = ErrorT SemError (State (SymbolTable, SourcePos))
+type SemMonad = ErrorT SemError (State (SymbolTable, SourcePos))
 
-semantics :: ASTPos -> SemMonad SymbolTable
+semantics :: ASTPos -> SemMonad (Either SemError SymbolTable)
 semantics (ProgramPos sl) = do
-  lift $ put (newPos "(unknown)" 0 0, M.empty)
-  catchError (semSL sl) Left
-  (st, _) <- lift get
-  return st
+  put (M.empty, newPos "(unknown)" 0 0)
+  catchError (semSL sl) (return . Left)
+  (st, _) <- get
+  return (Right st)
 
-semSL []       = return ()
 semSL (s : sl) = semS s >> semSL sl
 
 semS (pos, Assign v expr) = do
@@ -64,30 +61,30 @@ semS (pos, Assign v expr) = do
       }
                           
 updatePos pos = do
-  (st, oldPos) <- lift get
-  lift $ put (st, pos)
+  (st, oldPos) <- get
+  put (st, pos)
   return st
                                 
-semExpr (Int _) = return Int32
-semExpr (Char _) = return Char8
+semExpr :: Expr -> SemMonad MaliceType
+semExpr (Int _) = return MaliceInt
+semExpr (Char _) = return MaliceChar
 semExpr (Var v) = do 
-  (st, _) <- lift get
+  (st, _) <- get
   return (st M.! v)
 semExpr (UnOp op e) = do
-  (st, _) <- lift get
-  t <- semExpr e st
+  t <- semExpr e
   semOp op t
   return t
 semExpr (BinOp op e1 e2) = do
-  (st, pos) <- lift get
-  t1 <- semExpr e1 st
-  t2 <- semExpr e2 st
+  (_, pos) <- get
+  t1 <- semExpr e1
+  t2 <- semExpr e2
   semOp op t1
   if t1 == t2
     then return t1
-    else lift $ throwError (SemError pos "Invalid use of operator \"" ++ op ++
-                            "\" over types \"" ++ show t1 ++ "\" and \"" ++
-                            show t2 ++ "\".")
+    else throwError (SemError pos ("Invalid use of operator \"" ++ op ++
+                                   "\" over types \"" ++ show t1 ++ "\" and \"" ++
+                                   show t2 ++ "\"."))
 
                             
 semOp op t

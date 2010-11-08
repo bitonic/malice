@@ -9,11 +9,8 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Control.Monad.State
 
-reduceAST :: AST -> State (Map String Expr) Expr
-reduceAST (Program sl) = do
-  put (M.empty)
-  e <- reduceSL sl
-  return e
+reduceAST :: AST -> Expr
+reduceAST (Program sl) = evalState (reduceSL sl) M.empty
   
 reduceSL :: StatementList -> State (Map String Expr) Expr  
 reduceSL (Return e : sl) = do
@@ -57,4 +54,4 @@ getBinOp "/" = div
 getBinOp "%" = mod
 getBinOp "&" = (.&.)
 getBinOp "|" = (.|.)
-getBinOp "^" = (^)
+getBinOp "^" = xor

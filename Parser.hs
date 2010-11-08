@@ -100,7 +100,7 @@ p_statement = do
         <?> "statement")
   return (pos, s)
 
-p_return = p_string "Alice found" >> liftM Return p_expr
+p_return = p_string "Alice" >> p_string "found" >> liftM Return p_expr
 
 p_statement_id v = try (p_incdec v)
                <|> try (p_declare v)
@@ -148,8 +148,9 @@ p_string = p_lexeme . string
 maliceParser :: String -> String -> Either ParseError ASTPos
 maliceParser s f = parse mainparser f s
 
-maliceParseFile :: String -> IO AST
+maliceParseFile :: String -> IO (Either ParseError AST)
 maliceParseFile f = do
   s <- readFile f
-  let (Right astp) = maliceParser s f in
-    return (unPosAST astp)
+  case maliceParser s f of
+    (Right ast) -> return (Right $ unPosAST ast)
+    (Left err)  -> return (Left err)
