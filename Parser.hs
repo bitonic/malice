@@ -1,6 +1,6 @@
 module Parser
        (
-         maliceParser,
+         maliceParser, maliceParseFile,
          MaliceType(..),
          AST(..), StatementList, Statement(..), Expr(..),
          ASTPos(..), StatementListPos,
@@ -54,7 +54,7 @@ unPosS (_, s) = s
               
 -- Language characteristics
 
-operators = "+-*/%^&|"
+operators = "+-*/%^&|~"
 
 def = emptyDef { identStart = letter
                , identLetter = alphaNum <|> char '_'
@@ -146,3 +146,8 @@ p_string = p_lexeme . string
 -- parser from string
 maliceParser :: String -> String -> Either ParseError ASTPos
 maliceParser s f = parse mainparser f s
+
+maliceParseFile :: String -> IO Either ParseError ASTPos
+maliceParseFile f = do
+  s <- readFile f
+  return maliceParser s f
