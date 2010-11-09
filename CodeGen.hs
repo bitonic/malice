@@ -53,97 +53,97 @@ data LLcmd
 
 llProgram :: AST -> [LLcmd]
 llProgram (Program statlist)
-  = (llStatlist statlist (0, 4))
+  = (llStatlist statlist 0)
 
 
 
-llStatlist :: StatementList -> (Register, Register) -> [LLcmd]
-llStatlist (s : ss) (destreg, maxreg)
-  = (llStat s (destreg, maxreg))
-	++ (llStatlist ss (destreg, maxreg))
+llStatlist :: StatementList -> Register -> [LLcmd]
+llStatlist (s : ss) destreg
+  = (llStat s destreg)
+	++ (llStatlist ss destreg)
 llStatlist [] _
   = []
 
 
 
-llStat :: Statement -> (Register, Register) -> [LLcmd]
-llStat (Declare _ var) (destreg, maxreg)
+llStat :: Statement -> Register -> [LLcmd]
+llStat (Declare _ var) destreg
   = []
-llStat (Assign var (Int imm)) (destreg, maxreg)
+llStat (Assign var (Int imm)) destreg
   = [LLCpVarImm var imm]
-llStat (Assign var exp) (destreg, maxreg)
-  = (llExp exp (destreg, maxreg)) ++ [(LLCpVarReg var destreg)]
-llStat (Decrease var) (destreg, maxreg)
+llStat (Assign var exp) destreg
+  = (llExp exp destreg) ++ [(LLCpVarReg var destreg)]
+llStat (Decrease var) destreg
   = [(LLCpRegVar destreg var), (LLDec destreg), (LLCpVarReg var destreg)]
-llStat (Increase var) (destreg, maxreg)
+llStat (Increase var) destreg
   = [(LLCpRegVar destreg var), (LLInc destreg), (LLCpVarReg var destreg)]
-llStat (Return exp) (destreg, maxreg)
-  = (llExp exp (destreg, maxreg)) ++ [LLRet]
+llStat (Return exp) destreg
+  = (llExp exp destreg) ++ [LLRet]
 
 
 
-llExp :: Expr -> (Register, Register) -> [LLcmd]
-llExp (BinOp op (Int imm1) (Int imm2)) (destreg, maxreg)
+llExp :: Expr -> Register -> [LLcmd]
+llExp (BinOp op (Int imm1) (Int imm2)) destreg
   = [LLCpRegImm destreg (evalBinOp op imm1 imm2)]
-llExp (BinOp op (Int imm) exp2) (destreg, maxreg)
-  = (llExp exp2 (destreg, maxreg))
+llExp (BinOp op (Int imm) exp2) destreg
+  = (llExp exp2 destreg)
 	++ [llBinOpImm op destreg imm]
-llExp (BinOp op exp1 (Int imm)) (destreg, maxreg)
-  = (llExp exp1 (destreg, maxreg))
+llExp (BinOp op exp1 (Int imm)) destreg
+  = (llExp exp1 destreg)
 	++ [llBinOpImm op destreg imm]
-llExp (BinOp op exp1 exp2) (destreg, maxreg)
-  = (llExp exp1 (destreg, maxreg))
-	++ (llExp exp2 ((succ destreg), maxreg))
+llExp (BinOp op exp1 exp2) destreg
+  = (llExp exp1 destreg)
+	++ (llExp exp2 (succ destreg))
 	++ [llBinOp op destreg (succ destreg)]
-llExp (UnOp op (Int imm)) (destreg, maxreg)
+llExp (UnOp op (Int imm)) destreg
   = [LLCpRegImm destreg (evalUnOp op imm)]
-llExp (UnOp op exp) (destreg, maxreg)
-  = (llExp exp (destreg, maxreg))
+llExp (UnOp op exp) destreg
+  = (llExp exp destreg)
 	++ [llUnOp op destreg]
-llExp (Int i) (destreg, maxreg)
+llExp (Int i) destreg
   = [LLCpRegImm destreg i]
-llExp (Char c) (destreg, maxreg)
+llExp (Char c) destreg
   = [LLCpRegImm destreg (fromIntegral (ord c) :: Int32)]
-llExp (Var var) (destreg, maxreg)
+llExp (Var var) destreg
   = [LLCpRegVar destreg var]
 
 
 
 llBinOp :: Operand -> Register -> Register -> LLcmd
-llBinOp "+" rd rs = LLAdd rd rs
-llBinOp "-" rd rs = LLSub rd rs
-llBinOp "*" rd rs = LLMul rd rs
-llBinOp "/" rd rs = LLDiv rd rs
-llBinOp "%" rd rs = LLMod rd rs
-llBinOp "&" rd rs = LLAnd rd rs
-llBinOp "|" rd rs = LLAnd rd rs
-llBinOp "^" rd rs = LLAnd rd rs
+llBinOp "+" = LLAdd
+llBinOp "-" = LLSub
+llBinOp "*" = LLMul
+llBinOp "/" = LLDiv
+llBinOp "%" = LLMod
+llBinOp "&" = LLAnd
+llBinOp "|" = LLAnd
+llBinOp "^" = LLAnd
 
 llUnOp :: Operand -> Register -> LLcmd
-llUnOp "~" rd = LLNot rd
+llUnOp "~" = LLNot
 
 llBinOpImm :: Operand -> Register -> Int32 -> LLcmd
-llBinOpImm "+" rd imm = LLAddImm rd imm
-llBinOpImm "-" rd imm = LLSubImm rd imm
-llBinOpImm "*" rd imm = LLMulImm rd imm
-llBinOpImm "/" rd imm = LLDivImm rd imm
-llBinOpImm "%" rd imm = LLModImm rd imm
-llBinOpImm "&" rd imm = LLAndImm rd imm
-llBinOpImm "|" rd imm = LLAndImm rd imm
-llBinOpImm "^" rd imm = LLAndImm rd imm
+llBinOpImm "+" = LLAddImm
+llBinOpImm "-" = LLSubImm
+llBinOpImm "*" = LLMulImm
+llBinOpImm "/" = LLDivImm
+llBinOpImm "%" = LLModImm
+llBinOpImm "&" = LLAndImm
+llBinOpImm "|" = LLAndImm
+llBinOpImm "^" = LLAndImm
 
 evalBinOp :: Operand -> Int32 -> Int32 -> Int32
-evalBinOp "+" i j = i + j
-evalBinOp "-" i j = i - j
-evalBinOp "*" i j = i * j
-evalBinOp "/" i j = i `div` j
-evalBinOp "%" i j = i `mod` j
-evalBinOp "&" i j = i .&. j
-evalBinOp "|" i j = i .|. j
-evalBinOp "^" i j = i `xor` j
+evalBinOp "+" = (+)
+evalBinOp "-" = (-)
+evalBinOp "*" = (*)
+evalBinOp "/" = div
+evalBinOp "%" = mod
+evalBinOp "&" = (.&.)
+evalBinOp "|" = (.|.)
+evalBinOp "^" = xor
 
 evalUnOp :: Operand -> Int32 -> Int32
-evalUnOp "~" rd = 255 - 0
+evalUnOp "~" rd = 255 - rd
 
 
 
