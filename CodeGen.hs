@@ -51,7 +51,7 @@ data LLcmd
 	| LLRet
 	| LLSpSub Immediate
 	| LLSpAdd Immediate
-     deriving (Show, Eq)
+	deriving (Show, Eq)
 
 
 
