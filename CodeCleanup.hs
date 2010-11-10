@@ -4,12 +4,16 @@ import Parser
 
 sortDecls :: StatementList -> StatementList
 sortDecls xs
-  = [ Declare t x | Declare t x <- xs ] ++ removeDecls xs
+  = (getDecls xs) ++ (removeDecls xs)
+
+getDecls :: StatementList -> StatementList
+getDecls xs
+  = [ Declare t x | Declare t x <- xs ]
 
 removeDecls :: StatementList -> StatementList
-removeDecls (Declare _ _ : xs)
+removeDecls ((Declare t x) : xs)
   = removeDecls xs
 removeDecls (x:xs)
-  = x : removeDecls xs
+  = x : (removeDecls xs)
 removeDecls []
   = []
