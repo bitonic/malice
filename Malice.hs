@@ -2,7 +2,7 @@ module Main where
 
 import System ( getArgs )
 import System.FilePath.Posix ( takeBaseName, dropExtension )
-import System.Process ( runProcess )
+import System.Process ( runProcess, waitForProcess )
 import CodeGen
 import Semantics
 import Parser
@@ -17,6 +17,8 @@ main = do
       Left e   -> putStr ("Semantics error:\n" ++ show e)
       Right st -> let bf = dropExtension $ takeBaseName fn in do {
         writeFile (bf ++ ".asm") (codeGen $ reduceAST $ unPosAST ast);
-        ph <- runProcess "./compileasm" [bf] Nothing Nothing Nothing Nothing Nothing; }
+        runProcess "./compileasm" [bf] Nothing Nothing Nothing Nothing Nothing;
+        print "";
+        }
                                             
                              
