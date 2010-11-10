@@ -1,0 +1,13 @@
+#!/bin/sh
+
+if [ -e "$1.asm" ]; then
+    nasm -f elf $1.asm > /dev/null
+
+    ld -o $1 $1.o > /dev/null
+
+    rm $1.asm $1.o
+
+    echo "Done.\n"
+else
+    echo "Could not find the file \"$1.asm\".\n"
+fi
