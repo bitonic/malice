@@ -18,7 +18,6 @@ main = do
       Right st -> let bf = dropExtension $ takeBaseName fn in do {
         writeFile (bf ++ ".asm") (codeGen $ reduceAST $ unPosAST ast);
         runProcess "./compileasm" [bf] Nothing Nothing Nothing Nothing Nothing;
-        print "";
-        }
+        return (); }
                                             
                              
