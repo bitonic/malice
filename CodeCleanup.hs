@@ -7,9 +7,9 @@ sortDecls xs
   = [ Declare t x | Declare t x <- xs ] ++ removeDecls xs
 
 removeDecls :: StatementList -> StatementList
-removeDecls ((Declare t x) : xs)
+removeDecls (Declare _ _ : xs)
   = removeDecls xs
 removeDecls (x:xs)
-  = x : (removeDecls xs)
+  = x : removeDecls xs
 removeDecls []
   = []

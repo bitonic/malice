@@ -4,16 +4,17 @@ module Parser
          MaliceType(..),
          AST(..), StatementList, Statement(..), Expr(..),
          ASTPos(..), StatementListPos,
-         SourcePos(..),
+         SourcePos, newPos,
          unPosAST,
        ) where
 
-import Data.Int (Int32)
-import Control.Monad (liftM)
+import Data.Int ( Int32 )
+import Control.Monad ( liftM )
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr
 import Text.ParserCombinators.Parsec.Token
 import Text.ParserCombinators.Parsec.Language
+import Text.ParserCombinators.Parsec.Pos ( newPos )
 
 -- Abstact Syntax Tree definition
 -- The --Pos ones are used in the semantics, so that we
@@ -72,7 +73,6 @@ TokenParser { identifier = p_identifier
             , reservedOp = p_reservedOp
             , integer = p_integer
             , whiteSpace = p_white
-            , parens = p_parens
             , lexeme = p_lexeme
             } = makeTokenParser def
 
@@ -151,6 +151,7 @@ p_string = p_lexeme . string
 maliceParser :: String -> String -> Either ParseError ASTPos
 maliceParser s f = parse mainparser f s
 
+-- Parse from file
 maliceParseFile :: String -> IO (Either ParseError AST)
 maliceParseFile f = do
   s <- readFile f

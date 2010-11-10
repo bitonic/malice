@@ -9,17 +9,18 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Control.Monad.State
 
+-- Function that reduces malice statements.
 reduceAST :: AST -> AST
 reduceAST (Program sl) = evalState (reduceSL sl) M.empty
   
 reduceSL :: StatementList -> State (Map String Expr) AST  
-reduceSL (Return e : sl) = do
-  e <- reduceExpr e
-  return (Program [Return e])
+reduceSL (Return e : _) = do
+  e' <- reduceExpr e
+  return (Program [Return e'])
 reduceSL (Assign v e : sl) = do
-  e <- reduceExpr e
+  e' <- reduceExpr e
   vars <- get
-  put (M.insert v e vars)
+  put (M.insert v e' vars)
   reduceSL sl
 reduceSL (Declare _ _ : sl) = reduceSL sl
 reduceSL (Decrease v : sl) = do
@@ -36,7 +37,7 @@ reduceSL (Increase v : sl) = do
 reduceExpr (BinOp op e1 e2) = do
   (Int i1) <- reduceExpr e1
   (Int i2) <- reduceExpr e2
-  return (Int ((getBinOp op) i1 i2))
+  return (Int (getBinOp op i1 i2))
 reduceExpr (UnOp "~" e) = do
   (Int i) <- reduceExpr e
   return (Int $ complement i)

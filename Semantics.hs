@@ -6,15 +6,13 @@ module Semantics
        where
 
 import Parser
-import Text.ParserCombinators.Parsec.Pos (SourcePos(..), newPos)
-import Data.Map (Map)
+import Data.Map ( Map )
 import qualified Data.Map as M
 import Control.Monad.Error
 import Control.Monad.State
-import Control.Monad (unless)
+import Control.Monad ( unless )
 
 -- The operators types
-opTypes :: MaliceType -> [String]
 opTypes MaliceInt = ["+", "-", "*", "/", "%", "^", "&", "|"]
 opTypes MaliceChar = []
 
@@ -23,7 +21,6 @@ type SymbolTable = Map String MaliceType
 
 -- The error type. SourcePos comes from Text.Parsec
 type Message = String
-
 data SemError = SemError !SourcePos Message
 
 instance Error SemError where
@@ -34,7 +31,11 @@ instance Show SemError where
   show (SemError pos mess) =
     show pos ++ "\n" ++ mess ++ "\n"
 
--- The monad, derived from either, to catch errors
+-- The monad, derived from the error monad transformer.
+-- The inner monad is a state with the current symbol table and
+-- the current position. Probably it's possible to have a cleaner
+-- Code using Applicative, but we did not have time to do that
+-- for milestone 2.
 type SemMonad = ErrorT SemError (State (SymbolTable, SourcePos))
 
 -- Helper function to throw errors
@@ -42,11 +43,12 @@ throwSemError s = do
   (_, pos) <- get
   throwError (SemError pos s)
 
+-- The actual semantics analysis
 semantics (ProgramPos sl) = do
   semSL sl
   (st, _) <- get
   return st
-  
+
 semSL :: StatementListPos -> SemMonad ()
 semSL [] = throwSemError "Missing return statement."
 semSL ((_, Return e) : _) = semExpr e >> return ()
@@ -54,7 +56,7 @@ semSL (s : sl) = semS s >> semSL sl
 
 semS :: (SourcePos, Statement) -> SemMonad ()
 semS (pos, Assign v expr) = do
-  st <- updatePos pos
+  updatePos pos
   checkDecl v (
     \tVar -> do {
       tExpr <- semExpr expr;
@@ -68,13 +70,13 @@ semS (pos, Declare t v) = do
     Nothing -> put (M.insert v t st, pos)
     _       -> throwSemError ("The variable \"" ++ v ++ "\" was already" ++
                               " declared.")
-semS (pos, Decrease v) =
+semS (_, Decrease v) =
   checkDecl v (
     \t -> case t of
       MaliceInt -> return ()
       _         -> throwSemError ("Trying to decrease var \"" ++ v ++
                                   " of type \"" ++ show t ++ "\"."))
-semS (pos, Increase v) =
+semS (_, Increase v) =
   checkDecl v (
     \t -> case t of
       MaliceInt -> return ()
@@ -91,7 +93,7 @@ checkDecl v f = do
 
 updatePos :: SourcePos -> SemMonad SymbolTable 
 updatePos pos = do
-  (st, oldPos) <- get
+  (st, _) <- get
   put (st, pos)
   return st
                                 
@@ -106,7 +108,6 @@ semExpr (UnOp op e) = do
   semOp op t
   return t
 semExpr (BinOp op e1 e2) = do
-  (_, pos) <- get
   t1 <- semExpr e1
   t2 <- semExpr e2
   semOp op t1
@@ -120,11 +121,10 @@ semOp :: String -> MaliceType -> SemMonad ()
 semOp op t
   | op `elem` opTypes t = return ()
   | otherwise = do
-    (_, pos) <- get
     throwSemError ("The \"" ++ op ++ "\" operator does not support " ++
                    show t ++ " types.")
       
--- the actual function
+-- Semantics analysis from the ast with positions.
 maliceSemantics :: ASTPos -> Either SemError SymbolTable
 maliceSemantics ast
   = evalState (runErrorT $ semantics ast) (M.empty, newPos "(unknown)" 0 0)
