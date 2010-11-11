@@ -6,8 +6,8 @@ import CodeCleanup
 -- FIXME: Declares ALL variables as u8
 
 
-convertProgramToC :: AST -> String
-convertProgramToC (Program statlist)
+convertProgramToC :: SL -> String
+convertProgramToC statlist
   = "int main()\n{\n"
     ++ concatMap ((:) '\t' . convertStatementToC) (sortDecls statlist)
     ++ "}\n"

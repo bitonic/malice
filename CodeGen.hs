@@ -137,11 +137,6 @@ optimiseExpr exp1
 
 
 
-llProgram :: AST -> [LLcmd]
-llProgram (Program statlist)
-  = (llStatlist statlist 0)
-
-
 llStatlist :: StatementList -> Register -> [LLcmd]
 llStatlist (s : ss) destreg
   = (llStat s destreg)
@@ -394,11 +389,11 @@ fiddleDealloc (ls : lls) sl
 fiddleDealloc [ ] _
   = [ ]
 
-codeGen :: AST -> String
-codeGen ast = asmPrologue
+codeGen :: StatementList -> String
+codeGen sl = asmPrologue
 	++ (flip (codeGenLL) varmap $ ((llAllocLocVars sl) : (fiddleDealloc llsl sl)))
             where
-		--rast@(Program sl) = reduceAST ast
-		rast@(Program sl) = ast
-		llsl = llProgram rast
+		--rsl = maliceReduce sl
+		rsl = sl
+		llsl = llStatlist rsl 0
 		varmap = getVarMap sl 0
