@@ -1,6 +1,6 @@
 module Reduce
        (
-         reduceAST
+         maliceReduce
        ) where
        
 import Parser       
@@ -10,13 +10,13 @@ import qualified Data.Map as M
 import Control.Monad.State
 
 -- Function that reduces malice statements.
-reduceAST :: AST -> AST
-reduceAST (Program sl) = evalState (reduceSL sl) M.empty
+maliceReduce :: StatementList -> StatementList
+maliceReduce sl = evalState (reduceSL sl) M.empty
   
-reduceSL :: StatementList -> State (Map String Expr) AST  
+reduceSL :: StatementList -> State (Map String Expr) StatementList  
 reduceSL (Return e : _) = do
   e' <- reduceExpr e
-  return (Program [Return e'])
+  return [Return e']
 reduceSL (Assign v e : sl) = do
   e' <- reduceExpr e
   vars <- get

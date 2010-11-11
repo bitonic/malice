@@ -2,8 +2,8 @@ module Parser
        (
          maliceParser, maliceParseFile,
          MaliceType(..),
-         AST(..), StatementList, Statement(..), Expr(..),
-         ASTPos(..), StatementListPos,
+         StatementList, Statement(..), Expr(..),
+         StatementListPos,
          SourcePos, newPos,
          unPosAST,
        ) where
@@ -19,12 +19,6 @@ import Text.ParserCombinators.Parsec.Pos ( newPos )
 -- Abstact Syntax Tree definition
 -- The --Pos ones are used in the semantics, so that we
 -- can have nice error messages.
-
-data AST = Program StatementList
-           deriving (Show, Eq)
-
-data ASTPos = ProgramPos StatementListPos
-            deriving (Show, Eq)
 
 data MaliceType = MaliceInt | MaliceChar
                 deriving (Show, Eq)
@@ -49,8 +43,8 @@ data Expr
      deriving (Show, Eq)
               
 -- Converts from AST with positions to a AST without
-unPosAST :: ASTPos -> AST              
-unPosAST (ProgramPos sl) = Program $ map unPosS sl
+unPosSL :: StatementListPos -> StatementList
+unPosSL sl = map unPosS sl
 
 unPosS (_, s) = s
               
@@ -77,11 +71,11 @@ TokenParser { identifier = p_identifier
             } = makeTokenParser def
 
 -- Actual parser
-mainparser :: Parser ASTPos
+mainparser :: Parser StatementListPos
 mainparser = do p_white
                 sl <- many1 (do {s <- p_statement;
                                  p_separator >> return s})
-                return (ProgramPos sl)
+                return sl
 
 p_separator = try (p_string "too" >> p_separator')
           <|> p_separator'
@@ -148,13 +142,13 @@ p_int32 = do
 p_string = p_lexeme . string
 
 -- parser from string
-maliceParser :: String -> String -> Either ParseError ASTPos
+maliceParser :: String -> String -> Either ParseError StatementListPos
 maliceParser s f = parse mainparser f s
 
 -- Parse from file
-maliceParseFile :: String -> IO (Either ParseError AST)
+maliceParseFile :: String -> IO (Either ParseError StatementList)
 maliceParseFile f = do
   s <- readFile f
   case maliceParser s f of
-    (Right ast) -> return (Right $ unPosAST ast)
+    (Right ast) -> return (Right $ unPosSL sl)
     (Left err)  -> return (Left err)

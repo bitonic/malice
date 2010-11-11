@@ -44,7 +44,7 @@ throwSemError s = do
   throwError (SemError pos s)
 
 -- The actual semantics analysis
-semantics (ProgramPos sl) = do
+semantics sl = do
   semSL sl
   (st, _) <- get
   return st
@@ -125,6 +125,6 @@ semOp op t
                    show t ++ " types.")
       
 -- Semantics analysis from the ast with positions.
-maliceSemantics :: ASTPos -> Either SemError SymbolTable
-maliceSemantics ast
-  = evalState (runErrorT $ semantics ast) (M.empty, newPos "(unknown)" 0 0)
+maliceSemantics :: StatementListPos -> Either SemError SymbolTable
+maliceSemantics sl
+  = evalState (runErrorT $ semantics sl) (M.empty, newPos "(unknown)" 0 0)
