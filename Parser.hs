@@ -5,7 +5,7 @@ module Parser
          StatementList, Statement(..), Expr(..),
          StatementListPos,
          SourcePos, newPos,
-         unPosAST,
+         unPosSL,
        ) where
 
 import Data.Int ( Int32 )
@@ -150,5 +150,5 @@ maliceParseFile :: String -> IO (Either ParseError StatementList)
 maliceParseFile f = do
   s <- readFile f
   case maliceParser s f of
-    (Right ast) -> return (Right $ unPosSL sl)
-    (Left err)  -> return (Left err)
+    (Right sl) -> return (Right $ unPosSL sl)
+    (Left err) -> return (Left err)
