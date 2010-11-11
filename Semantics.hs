@@ -10,7 +10,6 @@ import Data.Map ( Map )
 import qualified Data.Map as M
 import Control.Monad.Error
 import Control.Monad.State
-import Control.Monad ( unless )
 
 -- The operators types
 opTypes MaliceInt = ["+", "-", "*", "/", "%", "^", "&", "|"]
