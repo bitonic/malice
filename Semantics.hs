@@ -1,7 +1,7 @@
 module Semantics
        (
          maliceSemantics,
-         SymbolTable
+         VarTypes
        )
        where
 
@@ -17,7 +17,7 @@ opTypes MaliceInt = ["+", "-", "*", "/", "%", "^", "&", "|"]
 opTypes MaliceChar = []
 
 -- The symboltable
-type SymbolTable = Map String MaliceType
+type VarTypes = Map String MaliceType
 
 -- The error type. SourcePos comes from Text.Parsec
 type Message = String
@@ -36,7 +36,7 @@ instance Show SemError where
 -- the current position. Probably it's possible to have a cleaner
 -- Code using Applicative, but we did not have time to do that
 -- for milestone 2.
-type SemMonad = ErrorT SemError (State (SymbolTable, SourcePos))
+type SemMonad = ErrorT SemError (State (VarTypes, SourcePos))
 
 -- Helper function to throw errors
 throwSemError s = do
@@ -91,7 +91,7 @@ checkDecl v f = do
                                v ++ "\" which has not been declared.")
     (Just t) -> f t
 
-updatePos :: SourcePos -> SemMonad SymbolTable 
+updatePos :: SourcePos -> SemMonad VarTypes 
 updatePos pos = do
   (st, _) <- get
   put (st, pos)
@@ -125,6 +125,6 @@ semOp op t
                    show t ++ " types.")
       
 -- Semantics analysis from the ast with positions.
-maliceSemantics :: StatementListPos -> Either SemError SymbolTable
+maliceSemantics :: StatementListPos -> Either SemError VarTypes
 maliceSemantics sl
   = evalState (runErrorT $ semantics sl) (M.empty, newPos "(unknown)" 0 0)
