@@ -20,10 +20,13 @@ type Register = Int
 type Variable = String
 type Immediate = Int32
 
+type VarMap = [(Variable, String)]
 
 --type VarOffset = Int
---data VarValue = ImmI Immediate | ImmC Char
+--data VarValue = Imm Immediate
 --data VarInfo = SVar VarOffset VarValue
+
+--data LLParam = PVar VarInfo | PReg Register | PImm Immediate
 
 
 data LLcmd
@@ -244,79 +247,105 @@ registerName r = error ("Error: Register index too high (" ++ (show r) ++ "). Th
 
 
 
-codeGenLL :: [LLcmd] -> String
-codeGenLL (LLCpRegImm 0 i : LLRet : [])
-  = "mov ebx, " ++ (show (truncate32to8 i)) ++ " ; program return code\n"
-	++ "mov eax, 0x1 ; syscall sys_exit\n"
-	++ "int 0x80\n"
-codeGenLL (LLCpRegImm r i : lls)
+codeGenLL :: [LLcmd] -> VarMap -> String
+--codeGenLL (LLCpRegImm 0 i : LLRet : []) _
+--  = "mov ebx, " ++ (show (truncate32to8 i)) ++ " ; program return code\n"
+--	++ "mov eax, 0x1 ; syscall sys_exit\n"
+--	++ "int 0x80\n"
+codeGenLL (LLCpRegVar r v : lls) varmap
+  = "mov " ++ (registerName r) ++ ", " ++ (lookupVar v varmap) ++ "\n"
+	++ (codeGenLL lls varmap)
+codeGenLL (LLCpVarReg v r : lls) varmap
+  = "mov " ++ (lookupVar v varmap) ++ ", " ++ (registerName r) ++ "\n"
+	++ (codeGenLL lls varmap)
+codeGenLL (LLCpVarImm v imm : lls) varmap
+  = "mov " ++ (lookupVar v varmap) ++ ", dword " ++ (show imm) ++ "\n"
+	++ (codeGenLL lls varmap)
+codeGenLL (LLCpRegImm r i : lls) varmap
   = "mov " ++ (registerName r) ++ ", " ++ (show i) ++ "\n"
-	++ (codeGenLL lls)
-codeGenLL (LLCpRegReg r1 r2 : lls)
+	++ (codeGenLL lls varmap)
+codeGenLL (LLCpRegReg r1 r2 : lls) varmap
   = "mov " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
-	++ (codeGenLL lls)
-codeGenLL (LLAdd r1 r2 : lls)
+	++ (codeGenLL lls varmap)
+codeGenLL (LLAdd r1 r2 : lls) varmap
   = "add " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
-	++ (codeGenLL lls)
-codeGenLL (LLSub r1 r2 : lls)
+	++ (codeGenLL lls varmap)
+codeGenLL (LLSub r1 r2 : lls) varmap
   = "sub " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
-	++ (codeGenLL lls)
-codeGenLL (LLMul r1 r2 : lls)
+	++ (codeGenLL lls varmap)
+codeGenLL (LLMul r1 r2 : lls) varmap
   = "imul " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
-	++ (codeGenLL lls)
---codeGenLL (LLDiv r1 r2 : lls)
---  = "idiv " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
---	++ (codeGenLL lls)
---codeGenLL (LLMod r1 r2 : lls)
---  = "imod " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
---	++ (codeGenLL lls)
-codeGenLL (LLAnd r1 r2 : lls)
+	++ (codeGenLL lls varmap)
+codeGenLL (LLDiv r1 r2 : lls) varmap
+-- WARNING: If r1 == 0 and r2 == 3 we might have loss of information...
+  = "push eax\n"
+	++ "push edx\n"
+	++ "mov eax, " ++ (registerName r1) ++ "\n"
+	++ "mov edx, " ++ (registerName r2) ++ "\n"
+	++ "idiv " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
+	++ "mov " ++ (registerName r1) ++ ", eax\n"
+	++ "pop edx"
+	++ "pop eax"
+	++ (codeGenLL lls varmap)
+codeGenLL (LLMod r1 r2 : lls) varmap
+-- WARNING: If r1 == 0 and r2 == 3 we might have loss of information...
+  = "push eax\n"
+	++ "push edx\n"
+	++ "mov eax, " ++ (registerName r1) ++ "\n"
+	++ "mov edx, " ++ (registerName r2) ++ "\n"
+	++ "idiv " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
+	++ "mov " ++ (registerName r1) ++ ", edx\n"
+	++ "pop edx"
+	++ "pop eax"
+	++ (codeGenLL lls varmap)
+codeGenLL (LLAnd r1 r2 : lls) varmap
   = "and " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
-	++ (codeGenLL lls)
-codeGenLL (LLOr r1 r2 : lls)
+	++ (codeGenLL lls varmap)
+codeGenLL (LLOr r1 r2 : lls) varmap
   = "or " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
-	++ (codeGenLL lls)
-codeGenLL (LLXOr r1 r2 : lls)
+	++ (codeGenLL lls varmap)
+codeGenLL (LLXOr r1 r2 : lls) varmap
   = "xor " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
-	++ (codeGenLL lls)
-codeGenLL (LLDec r : lls)
+	++ (codeGenLL lls varmap)
+codeGenLL (LLDec r : lls) varmap
   = "dec " ++ (registerName r) ++ "\n"
-	++ (codeGenLL lls)
-codeGenLL (LLInc r : lls)
+	++ (codeGenLL lls varmap)
+codeGenLL (LLInc r : lls) varmap
   = "inc " ++ (registerName r) ++ "\n"
-	++ (codeGenLL lls)
---codeGenLL (LLNot r : lls)
---  = "inc " ++ (registerName r) ++ "\n"
-codeGenLL (LLAddImm r1 imm : lls)
+	++ (codeGenLL lls varmap)
+codeGenLL (LLNot r : lls) varmap
+  = codeGenLL ( (LLCpRegReg (r+1) r) : (LLCpRegImm r 256) : (LLSub r (r+1))
+		: lls ) varmap
+codeGenLL (LLAddImm r1 imm : lls) varmap
   = "add " ++ (registerName r1) ++ ", " ++ (show imm) ++ "\n"
-	++ (codeGenLL lls)
-codeGenLL (LLSubImm r1 imm : lls)
+	++ (codeGenLL lls varmap)
+codeGenLL (LLSubImm r1 imm : lls) varmap
   = "sub " ++ (registerName r1) ++ ", " ++ (show imm) ++ "\n"
-	++ (codeGenLL lls)
-codeGenLL (LLMulImm r1 imm : lls)
+	++ (codeGenLL lls varmap)
+codeGenLL (LLMulImm r1 imm : lls) varmap
   = "imul " ++ (registerName r1) ++ ", " ++ (show imm) ++ "\n"
-	++ (codeGenLL lls)
---codeGenLL (LLDivImm r1 imm : lls)
---  = "idiv " ++ (registerName r1) ++ ", " ++ (show imm) ++ "\n"
---	++ (codeGenLL lls)
---codeGenLL (LLModImm r1 imm : lls)
---  = "imod " ++ (registerName r1) ++ ", " ++ (show imm) ++ "\n"
---	++ (codeGenLL lls)
-codeGenLL (LLAndImm r1 imm : lls)
+	++ (codeGenLL lls varmap)
+codeGenLL (LLDivImm r1 imm : lls) varmap
+  = codeGenLL ( (LLCpRegImm (r1+1) imm) : (LLDiv r1 (r1+1)) : lls ) varmap
+codeGenLL (LLModImm r1 imm : lls) varmap
+  = codeGenLL ( (LLCpRegImm (r1+1) imm) : (LLMod r1 (r1+1)) : lls ) varmap
+codeGenLL (LLAndImm r1 imm : lls) varmap
   = "and " ++ (registerName r1) ++ ", " ++ (show imm) ++ "\n"
-	++ (codeGenLL lls)
-codeGenLL (LLOrImm r1 imm : lls)
+	++ (codeGenLL lls varmap)
+codeGenLL (LLOrImm r1 imm : lls) varmap
   = "or " ++ (registerName r1) ++ ", " ++ (show imm) ++ "\n"
-	++ (codeGenLL lls)
-codeGenLL (LLXOrImm r1 imm : lls)
+	++ (codeGenLL lls varmap)
+codeGenLL (LLXOrImm r1 imm : lls) varmap
   = "xor " ++ (registerName r1) ++ ", " ++ (show imm) ++ "\n"
-	++ (codeGenLL lls)
-codeGenLL (LLRet : lls) = "ret\n" ++ (codeGenLL lls)
-codeGenLL (LLSpSub imm : lls)
-  = "sub esp, " ++ (show imm) ++ "\n" ++ (codeGenLL lls)
-codeGenLL (LLSpAdd imm : lls)
-  = "add esp, " ++ (show imm) ++ "\n" ++ (codeGenLL lls)
-codeGenLL [ ] = ""
+	++ (codeGenLL lls varmap)
+codeGenLL (LLRet : lls) varmap
+  = "ret\n" ++ (codeGenLL lls varmap)
+codeGenLL (LLSpSub imm : lls) varmap
+  = "sub esp, " ++ (show imm) ++ "\n" ++ (codeGenLL lls varmap)
+codeGenLL (LLSpAdd imm : lls) varmap
+  = "add esp, " ++ (show imm) ++ "\n" ++ (codeGenLL lls varmap)
+codeGenLL [ ] _
+  = ""
 
 
 asmPrologue :: String
@@ -327,6 +356,12 @@ asmPrologue = "\n"
 			++ "global _start ; export the main function\n"
 			++ "\n"
 			++ "_start:\n"
+			++ "call main\n"
+			++ "mov ebx, eax\n"
+			++ "mov eax, 1\n"
+			++ "int 0x80\n"
+			++ "\n\n"
+			++ "main:\n"
 
 llAllocLocVars :: StatementList -> LLcmd
 llAllocLocVars sl
@@ -336,9 +371,34 @@ llDeallocLocVars :: StatementList -> LLcmd
 llDeallocLocVars sl
   = LLSpAdd $ fromIntegral (4 * (length . getDecls $ sl))
 
+getVarMap :: StatementList -> Int -> VarMap
+getVarMap (Declare _ x : sl) offset
+  = (x, "[esp+" ++ (show offset) ++ "]") : getVarMap sl (offset + 4)
+getVarMap (_ : sl) offset
+  = getVarMap sl offset
+getVarMap [] _
+  = []
+
+lookupVar :: Variable -> VarMap -> String
+lookupVar x varmap
+  | (length varass) == 1 = head varass
+  | otherwise = error "Error: Trying to access a variable that has not been defined yet or more than once."
+  where
+    varass = [ str | (var, str) <- varmap, var == x ] 
+
+fiddleDealloc :: [LLcmd] -> StatementList -> [LLcmd]
+fiddleDealloc (LLRet : lls) sl
+  = (llDeallocLocVars sl) : (LLRet : (fiddleDealloc lls sl))
+fiddleDealloc (ls : lls) sl
+  = ls : (fiddleDealloc lls sl)
+fiddleDealloc [ ] _
+  = [ ]
+
 codeGen :: AST -> String
 codeGen ast = asmPrologue
-	++ (codeGenLL $ ((llAllocLocVars sl) : llsl) ++ [llDeallocLocVars sl])
+	++ (flip (codeGenLL) varmap $ ((llAllocLocVars sl) : (fiddleDealloc llsl sl)))
             where
-		rast@(Program sl) = reduceAST ast
+		--rast@(Program sl) = reduceAST ast
+		rast@(Program sl) = ast
 		llsl = llProgram rast
+		varmap = getVarMap sl 0
