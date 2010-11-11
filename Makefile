@@ -1,6 +1,6 @@
 GHCFLAGS = -Wall -O2 --make -fno-warn-missing-signatures -fno-warn-unused-do-bind
 default:
-	ghc ${GHCFLAGS} -o malice2asm Parser.hs Semantics.hs Reduce.hs CodeCleanup.hs CodeGen.hs Malice.hs
+	ghc ${GHCFLAGS} -o malice2asm Parser.hs Semantics.hs CodeCleanup.hs CodeGen.hs Malice.hs
 
 clean:
 	rm -f *.hi
