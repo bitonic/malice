@@ -1,0 +1,33 @@
+#!/bin/sh
+
+INPUT="$1"
+OUTPUT="$2"
+
+if [ $# == 2 ]; then
+    if [ -e "$INPUT" ]; then
+        ./malice2asm "$INPUT" "$OUTPUT"
+        
+        if [ -e "$OUTPUT.asm" ]; then
+            nasm -f elf "$OUTPUT.asm"
+            
+            if [ $? == 0 ]; then
+                ld -o "$OUTPUT" "$OUTPUT.o"
+
+                if [ $? == 0 ]; then
+                    echo "Done."
+                else
+                    echo "Failed to link."
+                fi
+            else
+                rm -f "$OUTPUT.o"
+                echo "Failed to assemble."
+            fi
+            
+            rm -f "$OUTPUT.asm"
+        fi
+    else
+        echo "Could not find file $INPUT."
+    fi
+else
+    echo "Usage: ./compile input_file output_file"
+fi

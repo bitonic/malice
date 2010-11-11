@@ -1,23 +1,18 @@
 module Main where
 
 import System ( getArgs )
-import System.FilePath.Posix ( takeBaseName, dropExtension )
-import System.Process ( runProcess, waitForProcess )
 import CodeGen
 import Semantics
 import Parser
-import Reduce
 
+main :: IO Int
 main = do
-  [fn] <- getArgs
-  f <- readFile fn
-  case maliceParser f fn of
-    Left e   -> putStr ("Parse error:\n" ++ show e)
+  [fi, fo] <- getArgs
+  f <- readFile fi
+  case maliceParser f fi of
+    Left e   -> putStr ("Parse error:\n" ++ show e) >> return 1
     Right sl -> case maliceSemantics sl of
-      Left e   -> putStr ("Semantics error:\n" ++ show e)
-      Right st -> let bf = dropExtension $ takeBaseName fn in do {
-        writeFile (bf ++ ".asm") (codeGen (unPosSL sl) st);
---        runProcess "./compileasm" [bf] Nothing Nothing Nothing Nothing Nothing;
-        return (); }
+      Left e   -> putStr ("Semantics error:\n" ++ show e) >> return 1
+      Right st -> writeFile (fo ++ ".asm") (codeGen (unPosSL sl) st) >> return 0
                                             
                              
