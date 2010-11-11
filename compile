@@ -18,12 +18,14 @@ if [ $# == 2 ]; then
                 else
                     echo "Failed to link."
                 fi
-            else
                 rm -f "$OUTPUT.o"
+            else
                 echo "Failed to assemble."
             fi
             
             rm -f "$OUTPUT.asm"
+        else
+            echo "Failed to compile."
         fi
     else
         echo "Could not find file $INPUT."
