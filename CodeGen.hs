@@ -10,8 +10,8 @@ import Data.Char
 import Reduce
 import CodeCleanup
 
-maxreg :: Register
-maxreg = 4
+--maxreg :: Register
+--maxreg = 4
 
 -- Always from right to left, Intel-style
 
@@ -19,6 +19,12 @@ type Operand = String
 type Register = Int
 type Variable = String
 type Immediate = Int32
+
+
+--type VarOffset = Int
+--data VarValue = ImmI Immediate | ImmC Char
+--data VarInfo = SVar VarOffset VarValue
+
 
 data LLcmd
 --Copy Dest Src
@@ -56,6 +62,18 @@ data LLcmd
 
 
 
+exprIntermeds :: Expr -> Int
+exprIntermeds (BinOp _ exp1 exp2)
+  = max (exprIntermeds exp1) ((exprIntermeds exp2) + 1)
+exprIntermeds (UnOp _ exp1)
+  = exprIntermeds exp1
+exprIntermeds (Int _)
+  = 0
+exprIntermeds (Char _)
+  = 0
+exprIntermeds (Var _)
+  = 0
+
 flipBinOpArgs :: Expr -> Expr
 flipBinOpArgs (BinOp op exp1 exp2)
   | op == "+" || op == "*" || op == "&" || op == "|" || op == "^"
@@ -67,7 +85,7 @@ flipBinOpArgs exp1
 -- Evaluate more costly (in terms of registers) expressions first
 sortExprWeight :: Expr -> Expr
 sortExprWeight (BinOp op exp1 exp2)
-  = if ( (llRegsNeeded exp1) < (llRegsNeeded exp2) )
+  = if ( (exprIntermeds exp1) < (exprIntermeds exp2) )
     then flipBinOpArgs ( BinOp op (sortExprWeight exp2) (sortExprWeight exp1) )
     else ( BinOp op (sortExprWeight exp1) (sortExprWeight exp2) )
 sortExprWeight exp1
@@ -85,39 +103,27 @@ sortExprType exp1
   = exp1
 
 
---llExp (BinOp op (Int imm) exp2) destreg
---  = (llExp exp2 destreg)
---	++ [llBinOpImm op destreg imm]
-
--- Collapse immediates if possible
-reduceExprImms :: Expr -> Expr
-reduceExprImms (BinOp op (Int i1) (Int i2))
+reduceExprImms' :: Expr -> Expr
+reduceExprImms' (BinOp op (Int i1) (Int i2))
   = Int (evalBinOp op i1 i2)
-reduceExprImms (BinOp op2 (BinOp op1 exp1 (Int i1)) (Int i2))
-  | op1 == op2 = BinOp op1 (reduceExprImms (BinOp op1 exp1 (Int i1)))
-                           (Int (evalBinOp op2 i1 i2))
-  | otherwise = BinOp op1 (reduceExprImms (BinOp op1 exp1 (Int i1)))
-                          (Int i2)
--- This does not scale for nested expressions that evaluate to an immediate.
-reduceExprImms (UnOp op (Int i))
+reduceExprImms' (UnOp op (Int i))
   = Int (evalUnOp op i)
-reduceExprImms (UnOp op exp1)
-  = UnOp op (reduceExprImms exp1)
-reduceExprImms exp1
+reduceExprImms' exp1
   = exp1
 
-
-llRegsNeeded :: Expr -> Int
-llRegsNeeded (BinOp _ exp1 exp2)
-  = max (llRegsNeeded exp1) ((llRegsNeeded exp2) + 1)
-llRegsNeeded (UnOp _ exp1)
-  = llRegsNeeded exp1
-llRegsNeeded (Int _)
-  = 0
-llRegsNeeded (Char _)
-  = 0
-llRegsNeeded (Var _)
-  = 0
+-- Collapse immediates from right to left if possible
+reduceExprImms :: Expr -> Expr
+reduceExprImms (BinOp op2 e1@(BinOp op1 exp1 (Int i1)) e2@(Int i2))
+  | op1 == op2
+    = reduceExprImms' (BinOp op1 (reduceExprImms exp1) (Int (evalBinOp op2 i1 i2)))
+  | otherwise
+    = reduceExprImms' ( BinOp op2 (reduceExprImms e1) e2 )
+reduceExprImms (BinOp op exp1 exp2)
+  = reduceExprImms' (BinOp op (reduceExprImms exp1) (reduceExprImms exp2))
+reduceExprImms (UnOp op exp1)
+  = reduceExprImms' (UnOp op (reduceExprImms exp1))
+reduceExprImms exp1
+  = reduceExprImms' exp1
 
 
 optimiseExpr :: Expr -> Expr
@@ -126,10 +132,11 @@ optimiseExpr exp1
 
 
 
+
+
 llProgram :: AST -> [LLcmd]
 llProgram (Program statlist)
   = (llStatlist statlist 0)
-
 
 
 llStatlist :: StatementList -> Register -> [LLcmd]
@@ -158,8 +165,6 @@ llStat (Return exp1) destreg
 
 
 llExp :: Expr -> Register -> [LLcmd]
---llExp (BinOp op (Int imm1) (Int imm2)) destreg
---  = [LLCpRegImm destreg (evalBinOp op imm1 imm2)]
 llExp (BinOp op exp1 (Int imm)) destreg
   = (llExp exp1 destreg)
 	++ [llBinOpImm op destreg imm]
