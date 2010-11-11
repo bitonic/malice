@@ -10,7 +10,7 @@ import qualified Data.Map as M
 import Control.Monad.State
 
 -- Function that reduces malice statements.
-maliceReduce :: StatementList -> StatementList
+maliceReduce :: StatementList -> VarTypes -> StatementList
 maliceReduce sl = evalState (reduceSL sl) M.empty
   
 reduceSL :: StatementList -> State (Map String Expr) StatementList  
