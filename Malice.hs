@@ -16,7 +16,7 @@ main = do
     Right sl -> case maliceSemantics sl of
       Left e   -> putStr ("Semantics error:\n" ++ show e)
       Right st -> let bf = dropExtension $ takeBaseName fn in do {
-        writeFile (bf ++ ".asm") (codeGen (maliceReduce $ unPosSL sl) st);
+        writeFile (bf ++ ".asm") (codeGen (unPosSL sl) st);
 --        runProcess "./compileasm" [bf] Nothing Nothing Nothing Nothing Nothing;
         return (); }
                                             

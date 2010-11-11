@@ -7,8 +7,8 @@ import Parser
 import Data.Int (Int32)
 import Data.Bits
 import Data.Char
-import Reduce
-import CodeCleanup
+import Semantics
+import qualified Data.Map as M
 
 --maxreg :: Register
 --maxreg = 4
@@ -20,7 +20,7 @@ type Register = Int
 type Variable = String
 type Immediate = Int32
 
-type VarMap = [(Variable, String)]
+--type VarMap = [(Variable, String)]
 
 --type VarOffset = Int
 --data VarValue = Imm Immediate
@@ -178,7 +178,7 @@ llExp (UnOp op exp1) destreg
 llExp (Int i) destreg
   = [LLCpRegImm destreg i]
 llExp (Char c) destreg
-  = [LLCpRegImm destreg (fromIntegral (ord c) :: Immediate)]
+  = [LLCpRegImm destreg (truncate32to8 $ fromIntegral (ord c) :: Immediate)]
 llExp (Var var) destreg
   = [LLCpRegVar destreg var]
 
@@ -242,36 +242,36 @@ registerName r = error ("Error: Register index too high (" ++ (show r) ++ "). Th
 
 
 
-codeGenLL :: [LLcmd] -> VarMap -> String
+codeGenLL :: [LLcmd] -> String
 --codeGenLL (LLCpRegImm 0 i : LLRet : []) _
 --  = "mov ebx, " ++ (show (truncate32to8 i)) ++ " ; program return code\n"
 --	++ "mov eax, 0x1 ; syscall sys_exit\n"
 --	++ "int 0x80\n"
-codeGenLL (LLCpRegVar r v : lls) varmap
-  = "mov " ++ (registerName r) ++ ", " ++ (lookupVar v varmap) ++ "\n"
-	++ (codeGenLL lls varmap)
-codeGenLL (LLCpVarReg v r : lls) varmap
-  = "mov " ++ (lookupVar v varmap) ++ ", " ++ (registerName r) ++ "\n"
-	++ (codeGenLL lls varmap)
-codeGenLL (LLCpVarImm v imm : lls) varmap
-  = "mov " ++ (lookupVar v varmap) ++ ", dword " ++ (show imm) ++ "\n"
-	++ (codeGenLL lls varmap)
-codeGenLL (LLCpRegImm r i : lls) varmap
+codeGenLL (LLCpRegVar r v : lls)
+  = "mov " ++ (registerName r) ++ ", [" ++ v ++ "]\n"
+	++ (codeGenLL lls)
+codeGenLL (LLCpVarReg v r : lls)
+  = "mov [" ++ v ++ "], " ++ (registerName r) ++ "\n"
+	++ (codeGenLL lls)
+codeGenLL (LLCpVarImm v imm : lls)
+  = "mov [" ++ v ++ "], dword " ++ (show imm) ++ "\n"
+	++ (codeGenLL lls)
+codeGenLL (LLCpRegImm r i : lls)
   = "mov " ++ (registerName r) ++ ", " ++ (show i) ++ "\n"
-	++ (codeGenLL lls varmap)
-codeGenLL (LLCpRegReg r1 r2 : lls) varmap
+	++ (codeGenLL lls)
+codeGenLL (LLCpRegReg r1 r2 : lls)
   = "mov " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
-	++ (codeGenLL lls varmap)
-codeGenLL (LLAdd r1 r2 : lls) varmap
+	++ (codeGenLL lls)
+codeGenLL (LLAdd r1 r2 : lls)
   = "add " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
-	++ (codeGenLL lls varmap)
-codeGenLL (LLSub r1 r2 : lls) varmap
+	++ (codeGenLL lls)
+codeGenLL (LLSub r1 r2 : lls)
   = "sub " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
-	++ (codeGenLL lls varmap)
-codeGenLL (LLMul r1 r2 : lls) varmap
+	++ (codeGenLL lls)
+codeGenLL (LLMul r1 r2 : lls)
   = "imul " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
-	++ (codeGenLL lls varmap)
-codeGenLL (LLDiv r1 r2 : lls) varmap
+	++ (codeGenLL lls)
+codeGenLL (LLDiv r1 r2 : lls)
 -- WARNING: If r1 == 0 and r2 == 3 we might have loss of information...
   = "push eax\n"
 	++ "push edx\n"
@@ -281,8 +281,8 @@ codeGenLL (LLDiv r1 r2 : lls) varmap
 	++ "mov " ++ (registerName r1) ++ ", eax\n"
 	++ "pop edx"
 	++ "pop eax"
-	++ (codeGenLL lls varmap)
-codeGenLL (LLMod r1 r2 : lls) varmap
+	++ (codeGenLL lls)
+codeGenLL (LLMod r1 r2 : lls)
 -- WARNING: If r1 == 0 and r2 == 3 we might have loss of information...
   = "push eax\n"
 	++ "push edx\n"
@@ -292,54 +292,54 @@ codeGenLL (LLMod r1 r2 : lls) varmap
 	++ "mov " ++ (registerName r1) ++ ", edx\n"
 	++ "pop edx"
 	++ "pop eax"
-	++ (codeGenLL lls varmap)
-codeGenLL (LLAnd r1 r2 : lls) varmap
+	++ (codeGenLL lls)
+codeGenLL (LLAnd r1 r2 : lls)
   = "and " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
-	++ (codeGenLL lls varmap)
-codeGenLL (LLOr r1 r2 : lls) varmap
+	++ (codeGenLL lls)
+codeGenLL (LLOr r1 r2 : lls)
   = "or " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
-	++ (codeGenLL lls varmap)
-codeGenLL (LLXOr r1 r2 : lls) varmap
+	++ (codeGenLL lls)
+codeGenLL (LLXOr r1 r2 : lls)
   = "xor " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
-	++ (codeGenLL lls varmap)
-codeGenLL (LLDec r : lls) varmap
+	++ (codeGenLL lls)
+codeGenLL (LLDec r : lls)
   = "dec " ++ (registerName r) ++ "\n"
-	++ (codeGenLL lls varmap)
-codeGenLL (LLInc r : lls) varmap
+	++ (codeGenLL lls)
+codeGenLL (LLInc r : lls)
   = "inc " ++ (registerName r) ++ "\n"
-	++ (codeGenLL lls varmap)
-codeGenLL (LLNot r : lls) varmap
+	++ (codeGenLL lls)
+codeGenLL (LLNot r : lls)
   = codeGenLL ( (LLCpRegReg (r+1) r) : (LLCpRegImm r 256) : (LLSub r (r+1))
-		: lls ) varmap
-codeGenLL (LLAddImm r1 imm : lls) varmap
+		: lls )
+codeGenLL (LLAddImm r1 imm : lls)
   = "add " ++ (registerName r1) ++ ", " ++ (show imm) ++ "\n"
-	++ (codeGenLL lls varmap)
-codeGenLL (LLSubImm r1 imm : lls) varmap
+	++ (codeGenLL lls)
+codeGenLL (LLSubImm r1 imm : lls)
   = "sub " ++ (registerName r1) ++ ", " ++ (show imm) ++ "\n"
-	++ (codeGenLL lls varmap)
-codeGenLL (LLMulImm r1 imm : lls) varmap
+	++ (codeGenLL lls)
+codeGenLL (LLMulImm r1 imm : lls)
   = "imul " ++ (registerName r1) ++ ", " ++ (show imm) ++ "\n"
-	++ (codeGenLL lls varmap)
-codeGenLL (LLDivImm r1 imm : lls) varmap
-  = codeGenLL ( (LLCpRegImm (r1+1) imm) : (LLDiv r1 (r1+1)) : lls ) varmap
-codeGenLL (LLModImm r1 imm : lls) varmap
-  = codeGenLL ( (LLCpRegImm (r1+1) imm) : (LLMod r1 (r1+1)) : lls ) varmap
-codeGenLL (LLAndImm r1 imm : lls) varmap
+	++ (codeGenLL lls)
+codeGenLL (LLDivImm r1 imm : lls)
+  = codeGenLL ( (LLCpRegImm (r1+1) imm) : (LLDiv r1 (r1+1)) : lls )
+codeGenLL (LLModImm r1 imm : lls)
+  = codeGenLL ( (LLCpRegImm (r1+1) imm) : (LLMod r1 (r1+1)) : lls )
+codeGenLL (LLAndImm r1 imm : lls)
   = "and " ++ (registerName r1) ++ ", " ++ (show imm) ++ "\n"
-	++ (codeGenLL lls varmap)
-codeGenLL (LLOrImm r1 imm : lls) varmap
+	++ (codeGenLL lls)
+codeGenLL (LLOrImm r1 imm : lls)
   = "or " ++ (registerName r1) ++ ", " ++ (show imm) ++ "\n"
-	++ (codeGenLL lls varmap)
-codeGenLL (LLXOrImm r1 imm : lls) varmap
+	++ (codeGenLL lls)
+codeGenLL (LLXOrImm r1 imm : lls)
   = "xor " ++ (registerName r1) ++ ", " ++ (show imm) ++ "\n"
-	++ (codeGenLL lls varmap)
-codeGenLL (LLRet : lls) varmap
-  = "ret\n" ++ (codeGenLL lls varmap)
-codeGenLL (LLSpSub imm : lls) varmap
-  = "sub esp, " ++ (show imm) ++ "\n" ++ (codeGenLL lls varmap)
-codeGenLL (LLSpAdd imm : lls) varmap
-  = "add esp, " ++ (show imm) ++ "\n" ++ (codeGenLL lls varmap)
-codeGenLL [ ] _
+	++ (codeGenLL lls)
+codeGenLL (LLRet : lls)
+  = "ret\n" ++ (codeGenLL lls)
+codeGenLL (LLSpSub imm : lls)
+  = "sub esp, " ++ (show imm) ++ "\n" ++ (codeGenLL lls)
+codeGenLL (LLSpAdd imm : lls)
+  = "add esp, " ++ (show imm) ++ "\n" ++ (codeGenLL lls)
+codeGenLL [ ]
   = ""
 
 
@@ -358,6 +358,7 @@ asmPrologue = "\n"
 			++ "\n\n"
 			++ "main:\n"
 
+{-
 llAllocLocVars :: StatementList -> LLcmd
 llAllocLocVars sl
   = LLSpSub $ fromIntegral (4 * (length $ getDecls $ sl))
@@ -388,12 +389,20 @@ fiddleDealloc (ls : lls) sl
   = ls : (fiddleDealloc lls sl)
 fiddleDealloc [ ] _
   = [ ]
+-}
 
-codeGen :: StatementList -> String
-codeGen sl = asmPrologue
-	++ (flip (codeGenLL) varmap $ ((llAllocLocVars sl) : (fiddleDealloc llsl sl)))
+codeGenGlobVar :: Variable -> MaliceType -> String -> String
+codeGenGlobVar v _ rest
+  = v ++ " DD 0\n" ++ rest
+
+codeGen :: StatementList -> VarTypes -> String
+codeGen sl vt = asmPrologue
+--	++ (flip (codeGenLL) varmap $ ((llAllocLocVars sl) : (fiddleDealloc llsl sl)))
+	++ codeGenLL llsl ++ globs
             where
 		--rsl = maliceReduce sl
 		rsl = sl
 		llsl = llStatlist rsl 0
-		varmap = getVarMap sl 0
+		--varmap = getVarMap sl 0
+		globs = "\n\nsection .data ; global variables go here\n" ++ M.foldWithKey codeGenGlobVar "" vt
+
