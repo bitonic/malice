@@ -63,11 +63,11 @@ def = emptyDef { identStart = letter
 
 -- Generate useful parsers with makeTokenParser                 
 TokenParser { identifier = p_identifier
-            , operator = p_operator
             , reservedOp = p_reservedOp
             , integer = p_integer
             , whiteSpace = p_white
             , lexeme = p_lexeme
+            , charLiteral = p_letter
             } = makeTokenParser def
 
 -- Actual parser
@@ -107,10 +107,12 @@ p_incdec v = choice [ p_string "ate" >> return (Increase v)
                     , p_string "drank" >> return (Decrease v)
                     ]
 
-p_declare v = do p_string "was a"
-                 choice [ p_string "number" >> return (Declare MaliceInt v)
-                        , p_string "letter" >> return (Declare MaliceChar v)
-                        ]
+p_declare v = do
+  p_string "was"
+  p_string "a"
+  choice [ p_string "number" >> return (Declare MaliceInt v)
+         , p_string "letter" >> return (Declare MaliceChar v)
+         ]
 
 p_assign v = p_string "became" >> liftM (Assign v) p_expr
 
@@ -132,11 +134,24 @@ infixOp op
 
 term = (lookAhead p_operator >> p_expr)
    <|> liftM Var p_identifier
+   <|> liftM Char p_letter
    <|> liftM Int p_int32
 
 p_int32 = do
   int <- p_integer
   return (fromIntegral int :: Int32)
+  
+p_operator =
+  choice [ p_string "+"
+         , p_string "-"
+         , p_string "*"
+         , p_string "/"
+         , p_string "%"
+         , p_string "^"
+         , p_string "&"
+         , p_string "|"
+         , p_string "~"
+         ]
 
 -- Utils
 p_string = p_lexeme . string
