@@ -23,7 +23,7 @@ if [ $# == 2 ]; then
                 echo "Failed to assemble."
             fi
             
-            rm -f "$OUTPUT.asm"
+#            rm -f "$OUTPUT.asm"
         else
             echo "Failed to compile."
         fi

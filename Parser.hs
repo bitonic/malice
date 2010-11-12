@@ -68,6 +68,7 @@ TokenParser { identifier = p_identifier
             , whiteSpace = p_white
             , lexeme = p_lexeme
             , charLiteral = p_letter
+            , parens = p_parens
             } = makeTokenParser def
 
 -- Actual parser
@@ -133,6 +134,7 @@ infixOp op
   = Infix (p_reservedOp op >> return (BinOp op)) AssocLeft
 
 term = (lookAhead p_operator >> p_expr)
+   <|> p_parens p_expr
    <|> liftM Var p_identifier
    <|> liftM Char p_letter
    <|> liftM Int p_int32

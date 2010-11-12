@@ -12,7 +12,7 @@ import Control.Monad.Error
 import Control.Monad.State
 
 -- The operators types
-opTypes MaliceInt = ["+", "-", "*", "/", "%", "^", "&", "|"]
+opTypes MaliceInt = ["+", "-", "*", "/", "%", "^", "&", "|", "~"]
 opTypes MaliceChar = []
 
 -- The symboltable
