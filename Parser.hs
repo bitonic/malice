@@ -81,12 +81,7 @@ mainparser = do p_white
 p_separator = try (p_string "too" >> p_separator')
           <|> p_separator'
           <?> "statement separator"
-p_separator' = choice [ p_string "and"
-                      , p_string "but"
-                      , p_string "then"
-                      , p_string "."
-                      , p_string ","
-                      ]
+p_separator' = choice $ map p_string [ "and", "but", "then", ".", ","]
 
 -- Statement
 p_statement = do
