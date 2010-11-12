@@ -143,17 +143,7 @@ p_int32 = do
   int <- p_integer
   return (fromIntegral int :: Int32)
   
-p_operator =
-  choice [ p_string "+"
-         , p_string "-"
-         , p_string "*"
-         , p_string "/"
-         , p_string "%"
-         , p_string "^"
-         , p_string "&"
-         , p_string "|"
-         , p_string "~"
-         ]
+p_operator = choice $ map p_string [[op] | op <- operators]
 
 -- Utils
 p_string = p_lexeme . string
