@@ -54,26 +54,28 @@ codeGenLL (LLMul r1 r2 : lls)
   = "imul " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
     ++ (codeGenLL lls)
 codeGenLL (LLDiv r1 r2 : lls)
--- WARNING: If r1 == 0 and r2 == 3 we might have loss of information...
+-- WARNING: If r1 == 3 and r2 == 0 we will have loss of information...
+-- To be fixed later with register allocation.
   = "push eax\n"
     ++ "push edx\n"
     ++ "mov eax, " ++ (registerName r1) ++ "\n"
     ++ "mov edx, " ++ (registerName r2) ++ "\n"
-    ++ "idiv " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
+    ++ "idiv " ++ (registerName r2) ++ "\n"
     ++ "mov " ++ (registerName r1) ++ ", eax\n"
-    ++ "pop edx"
-    ++ "pop eax"
+    ++ "pop edx\n"
+    ++ "pop eax\n"
     ++ (codeGenLL lls)
 codeGenLL (LLMod r1 r2 : lls)
--- WARNING: If r1 == 0 and r2 == 3 we might have loss of information...
+-- WARNING: If r1 == 3 and r2 == 0 we will have loss of information...
+-- To be fixed later with register allocation.
   = "push eax\n"
     ++ "push edx\n"
     ++ "mov eax, " ++ (registerName r1) ++ "\n"
     ++ "mov edx, " ++ (registerName r2) ++ "\n"
-    ++ "idiv " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
+    ++ "idiv " ++ (registerName r2) ++ "\n"
     ++ "mov " ++ (registerName r1) ++ ", edx\n"
-    ++ "pop edx"
-    ++ "pop eax"
+    ++ "pop edx\n"
+    ++ "pop eax\n"
     ++ (codeGenLL lls)
 codeGenLL (LLAnd r1 r2 : lls)
   = "and " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
@@ -121,6 +123,12 @@ codeGenLL (LLSpSub imm : lls)
   = "sub esp, " ++ (show imm) ++ "\n" ++ (codeGenLL lls)
 codeGenLL (LLSpAdd imm : lls)
   = "add esp, " ++ (show imm) ++ "\n" ++ (codeGenLL lls)
+codeGenLL (LLPush r : lls)
+  = "push " ++ (registerName r) ++ "\n"
+    ++ (codeGenLL lls)
+codeGenLL (LLPop r : lls)
+  = "pop " ++ (registerName r) ++ "\n"
+    ++ (codeGenLL lls)
 codeGenLL [ ]
   = ""
 

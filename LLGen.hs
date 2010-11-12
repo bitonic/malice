@@ -55,6 +55,9 @@ data LLcmd
      | LLRet
      | LLSpSub Immediate
      | LLSpAdd Immediate
+     | LLPush Register
+--     | LLPushImm Immediate
+     | LLPop Register
      deriving (Show, Eq)
 
 exprIntermeds :: Expr -> Int
@@ -98,6 +101,10 @@ sortExprType exp1
   = exp1
 
 reduceExprImms' :: Expr -> Expr
+reduceExprImms' e@(BinOp "/" (Int _) (Int 0))
+  = e
+reduceExprImms' e@(BinOp "%" (Int _) (Int 0))
+  = e
 reduceExprImms' (BinOp op (Int i1) (Int i2))
   = Int (evalBinOp op i1 i2)
 reduceExprImms' (UnOp op (Int i))
@@ -145,7 +152,9 @@ llS (Increase var) destreg
 llS (Return exp1) destreg
   = (llExp (optimiseExpr exp1) destreg) ++ [LLRet]
 
-
+{-
+ - This code is for unlimited registers, to be used later
+ -
 llExp :: Expr -> Register -> [LLcmd]
 llExp (BinOp op exp1 (Int imm)) destreg
   = (llExp exp1 destreg)
@@ -165,6 +174,33 @@ llExp (Char c) destreg
   = [LLCpRegImm destreg (truncate32to8 $ fromIntegral (ord c) :: Immediate)]
 llExp (Var var) destreg
   = [LLCpRegVar destreg var]
+-}
+
+-- The following code does a simple stack machine for evaluating Exprs.
+llExp :: Expr -> Register -> [LLcmd]
+llExp (BinOp op exp1 (Int imm)) destreg
+  = (llExp exp1 destreg)
+	++ [llBinOpImm op destreg imm]
+llExp (BinOp op exp1 exp2) destreg
+  = (llExp exp1 destreg)
+	++ [LLPush destreg]
+--	++ (llExp exp2 (succ destreg))
+	++ (llExp exp2 destreg)
+	++ [LLCpRegReg (succ destreg) destreg]
+	++ [LLPop destreg]
+	++ [llBinOp op destreg (succ destreg)]
+llExp (UnOp op (Int imm)) destreg
+  = [LLCpRegImm destreg (evalUnOp op imm)]
+llExp (UnOp op exp1) destreg
+  = (llExp exp1 destreg)
+	++ [llUnOp op destreg]
+llExp (Int i) destreg
+  = [LLCpRegImm destreg i]
+llExp (Char c) destreg
+  = [LLCpRegImm destreg (truncate32to8 $ fromIntegral (ord c) :: Immediate)]
+llExp (Var var) destreg
+  = [LLCpRegVar destreg var]
+
 
 
 
