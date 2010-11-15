@@ -83,7 +83,7 @@ flipBinOpArgs exp1
 -- Evaluate more costly (in terms of registers) expressions first
 sortExprWeight :: Expr -> Expr
 sortExprWeight (BinOp op exp1 exp2)
-  = if exprIntermeds exp1 < exprIntermeds exp2
+  = if exprIntermeds exp1 > exprIntermeds exp2
       then flipBinOpArgs $ BinOp op (sortExprWeight exp2) (sortExprWeight exp1)
       else BinOp op (sortExprWeight exp1) (sortExprWeight exp2)
 sortExprWeight exp1
@@ -115,6 +115,7 @@ reduceExprImms' exp1
 -- Collapse immediates from right to left if possible
 reduceExprImms :: Expr -> Expr
 reduceExprImms (BinOp op2 e1@(BinOp op1 exp1 (Int i1)) e2@(Int i2))
+-- FIXME: THIS COLLAPSES ALL OPERATORS, OVERSEEING ROUNDING ERRORS
   | op1 == op2
     = reduceExprImms' (BinOp op1 (reduceExprImms exp1) (Int (evalBinOp op2 i1 i2)))
   | otherwise
@@ -127,7 +128,10 @@ reduceExprImms exp1
   = reduceExprImms' exp1
 
 optimiseExpr :: Expr -> Expr
-optimiseExpr = reduceExprImms . sortExprType . sortExprWeight
+--optimiseExpr = reduceExprImms . sortExprType . sortExprWeight
+--optimiseExpr = sortExprType . sortExprWeight
+-- Disable optimisations for now
+optimiseExpr = id
 
 
 
@@ -144,13 +148,13 @@ llS (Declare _ _) _
 llS (Assign var (Int imm)) _
   = [LLCpVarImm var imm]
 llS (Assign var exp1) destreg
-  = (llExp (exp1) destreg) ++ [(LLCpVarReg var destreg)]
+  = (llExp (optimiseExpr exp1) destreg) ++ [(LLCpVarReg var destreg)]
 llS (Decrease var) destreg
   = [(LLCpRegVar destreg var), (LLDec destreg), (LLCpVarReg var destreg)]
 llS (Increase var) destreg
   = [(LLCpRegVar destreg var), (LLInc destreg), (LLCpVarReg var destreg)]
 llS (Return exp1) destreg
-  = (llExp (exp1) destreg) ++ [LLRet]
+  = (llExp (optimiseExpr exp1) destreg) ++ [LLRet]
 
 {-
  - This code is for unlimited registers, to be used later
@@ -197,7 +201,7 @@ llExp (UnOp op exp1) destreg
 llExp (Int i) destreg
   = [LLCpRegImm destreg i]
 llExp (Char c) destreg
-  = [LLCpRegImm destreg (truncate32to8 $ fromIntegral (ord c) :: Immediate)]
+  = [LLCpRegImm destreg (truncates32tou8 $ fromIntegral (ord c) :: Immediate)]
 llExp (Var var) destreg
   = [LLCpRegVar destreg var]
 
@@ -248,8 +252,13 @@ evalUnOp op = error ("evalUnOp: Invalid operand encountered: " ++ op)
 
 
 
-truncate32to8 :: Immediate -> Immediate
-truncate32to8 i = i .&. 255
+truncates32tou8 :: Immediate -> Immediate
+truncates32tou8 i = 255 .&. i
+{-
+  = if (i < 0)
+    then (256 - (i .&. 255))
+    else (i .&. 255)
+-}
 
 maliceLL :: StatementList -> [LLcmd]
 maliceLL sl = llSL sl 0
