@@ -19,4 +19,4 @@ clean:
 .PHONY : tar
 tar:
 	rm -f malice_m2.tar.gz
-	tar zcvf malice_m2.tar.gz *.hs compile Makefile AUTHORS
+	tar zcvf malice_m2.tar.gz *.hs compile Makefile AUTHORS README
