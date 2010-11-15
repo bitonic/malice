@@ -69,18 +69,21 @@ semS (pos, Declare t v) = do
     Nothing -> put (M.insert v t st, pos)
     _       -> throwSemError ("The variable \"" ++ v ++ "\" was already" ++
                               " declared.")
-semS (_, Decrease v) =
+semS (pos, Decrease v) =
+  updatePos pos
   checkDecl v (
     \t -> case t of
       MaliceInt -> return ()
       _         -> throwSemError ("Trying to decrease var \"" ++ v ++
                                   " of type \"" ++ show t ++ "\"."))
 semS (_, Increase v) =
+  updatePos pos
   checkDecl v (
     \t -> case t of
       MaliceInt -> return ()
       _         -> throwSemError ("Trying to increase var \"" ++ v ++
                                   " of type \"" ++ show t ++ "\"."))
+semS (_, Return _) = error "The function semS is to be called by semSL."
 
 checkDecl :: String -> (MaliceType -> SemMonad a) -> SemMonad a
 checkDecl v f = do
