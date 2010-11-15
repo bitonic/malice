@@ -1,5 +1,5 @@
 We chose to implement the Alice compiler in haskell.
-The compiler is consisted of 4 parts:
+The compiler consists of 4 parts:
 - The Parser:
   The lexer/parser is written with the aid of the parsec
   ( http://research.microsoft.com/en-us/um/people/daan/parsec.html ).
@@ -16,4 +16,14 @@ The compiler is consisted of 4 parts:
   short-circuiting the monad. The State monad inside it "brings around" the symbol table and the
   current position in the file.
 - The IR generator
+  Once the code is parsed, it is broken down into rather atomic commands,
+  the intermediate representation. In our compiler this is the LL (low-level)
+  prefixed code. It currently resembles x86 assembly in Intel style assembly
+  quite closely but will be further generalised in the future, allowing code
+  generation for various platforms as well as a broad range of optimisations.
+  The IR is of particular interest for LLVM targets: It is designed to be
+  translated to SSA easily.
 - The code generator
+  This is currently a backend that generates primitive assembly code for
+  x86-32 processors. After generalising the IR as mentioned above this will
+  be easily exchangeable for code generators for other architectures.
