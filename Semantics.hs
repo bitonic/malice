@@ -76,7 +76,7 @@ semS (pos, Decrease v) =
       MaliceInt -> return ()
       _         -> throwSemError ("Trying to decrease var \"" ++ v ++
                                   " of type \"" ++ show t ++ "\"."))
-semS (_, Increase v) =
+semS (pos, Increase v) =
   updatePos pos
   checkDecl v (
     \t -> case t of
