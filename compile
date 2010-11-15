@@ -6,29 +6,37 @@ OUTPUT="$2"
 if [ $# == 2 ]; then
     if [ -e "$INPUT" ]; then
         ./malice2asm "$INPUT" "$OUTPUT"
+        RETVAL=$?
         
         if [ -e "$OUTPUT.asm" ]; then
             nasm -f elf "$OUTPUT.asm"
+            RETVAL=$?
             
             if [ $? == 0 ]; then
                 ld -o "$OUTPUT" "$OUTPUT.o"
+                RETVAL=$?
 
                 if [ $? == 0 ]; then
                     echo "Done."
                 else
                     echo "Failed to link."
+                    exit $RETVAL
                 fi
+                
                 rm -f "$OUTPUT.o"
             else
                 echo "Failed to assemble."
+                exit $RETVAL
             fi
             
 #            rm -f "$OUTPUT.asm"
         else
             echo "Failed to compile."
+            exit $RETVAL
         fi
     else
         echo "Could not find file $INPUT."
+        return 1;
     fi
 else
     echo "Usage: ./compile input_file output_file"

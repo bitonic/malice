@@ -59,11 +59,11 @@ codeGenLL (LLDiv r1 r2 : lls)
   = "push eax\n"
     ++ "push edx\n"
     ++ "mov eax, " ++ (registerName r1) ++ "\n"
-    ++ "mov edx, " ++ (registerName r2) ++ "\n"
+    ++ "mov edx, 0\n"
     ++ "idiv " ++ (registerName r2) ++ "\n"
     ++ "mov " ++ (registerName r1) ++ ", eax\n"
-    ++ "pop edx\n"
-    ++ "pop eax\n"
+    ++ (if (r1 /= 3) then "pop edx\n" else "add esp, 4\n")
+    ++ (if (r1 /= 0) then "pop eax\n" else "add esp, 4\n")
     ++ (codeGenLL lls)
 codeGenLL (LLMod r1 r2 : lls)
 -- WARNING: If r1 == 3 and r2 == 0 we will have loss of information...
@@ -71,11 +71,11 @@ codeGenLL (LLMod r1 r2 : lls)
   = "push eax\n"
     ++ "push edx\n"
     ++ "mov eax, " ++ (registerName r1) ++ "\n"
-    ++ "mov edx, " ++ (registerName r2) ++ "\n"
+    ++ "mov edx, 0\n"
     ++ "idiv " ++ (registerName r2) ++ "\n"
     ++ "mov " ++ (registerName r1) ++ ", edx\n"
-    ++ "pop edx\n"
-    ++ "pop eax\n"
+    ++ (if (r1 /= 3) then "pop edx\n" else "add esp, 4\n")
+    ++ (if (r1 /= 0) then "pop eax\n" else "add esp, 4\n")
     ++ (codeGenLL lls)
 codeGenLL (LLAnd r1 r2 : lls)
   = "and " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"

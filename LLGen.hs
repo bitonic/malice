@@ -144,13 +144,13 @@ llS (Declare _ _) _
 llS (Assign var (Int imm)) _
   = [LLCpVarImm var imm]
 llS (Assign var exp1) destreg
-  = (llExp (optimiseExpr exp1) destreg) ++ [(LLCpVarReg var destreg)]
+  = (llExp (exp1) destreg) ++ [(LLCpVarReg var destreg)]
 llS (Decrease var) destreg
   = [(LLCpRegVar destreg var), (LLDec destreg), (LLCpVarReg var destreg)]
 llS (Increase var) destreg
   = [(LLCpRegVar destreg var), (LLInc destreg), (LLCpVarReg var destreg)]
 llS (Return exp1) destreg
-  = (llExp (optimiseExpr exp1) destreg) ++ [LLRet]
+  = (llExp (exp1) destreg) ++ [LLRet]
 
 {-
  - This code is for unlimited registers, to be used later
@@ -211,8 +211,8 @@ llBinOp "*" = LLMul
 llBinOp "/" = LLDiv
 llBinOp "%" = LLMod
 llBinOp "&" = LLAnd
-llBinOp "|" = LLAnd
-llBinOp "^" = LLAnd
+llBinOp "|" = LLOr
+llBinOp "^" = LLXOr
 llBinOp op = error ("llBinOp: Invalid operand encountered: " ++ op)
 
 llUnOp :: Operand -> Register -> LLcmd
@@ -226,8 +226,8 @@ llBinOpImm "*" = LLMulImm
 llBinOpImm "/" = LLDivImm
 llBinOpImm "%" = LLModImm
 llBinOpImm "&" = LLAndImm
-llBinOpImm "|" = LLAndImm
-llBinOpImm "^" = LLAndImm
+llBinOpImm "|" = LLOrImm
+llBinOpImm "^" = LLXOrImm
 llBinOpImm op = error ("llBinOpImm: Invalid operand encountered: " ++ op)
 
 
