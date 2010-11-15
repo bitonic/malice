@@ -60,6 +60,10 @@ data LLcmd
      | LLPop Register
      deriving (Show, Eq)
 
+
+-- Optimisations disabled for now
+{-
+
 exprIntermeds :: Expr -> Int
 exprIntermeds (BinOp _ exp1 exp2)
   = max (exprIntermeds exp1) ((exprIntermeds exp2) + 1)
@@ -127,11 +131,32 @@ reduceExprImms (UnOp op exp1)
 reduceExprImms exp1
   = reduceExprImms' exp1
 
+evalBinOp :: Operand -> Immediate -> Immediate -> Immediate
+evalBinOp "+" = (+)
+evalBinOp "-" = (-)
+evalBinOp "*" = (*)
+evalBinOp "/" = div
+evalBinOp "%" = mod
+evalBinOp "&" = (.&.)
+evalBinOp "|" = (.|.)
+evalBinOp "^" = xor
+evalBinOp op = error ("evalBinOp: Invalid operand encountered: " ++ op)
+
+
+-}
+
+evalUnOp :: Operand -> Immediate -> Immediate
+evalUnOp "~" = (255 -)
+evalUnOp op = error ("evalUnOp: Invalid operand encountered: " ++ op)
+
+
+
 optimiseExpr :: Expr -> Expr
 --optimiseExpr = reduceExprImms . sortExprType . sortExprWeight
 --optimiseExpr = sortExprType . sortExprWeight
 -- Disable optimisations for now
 optimiseExpr = id
+
 
 
 
@@ -234,21 +259,6 @@ llBinOpImm "|" = LLOrImm
 llBinOpImm "^" = LLXOrImm
 llBinOpImm op = error ("llBinOpImm: Invalid operand encountered: " ++ op)
 
-
-evalBinOp :: Operand -> Immediate -> Immediate -> Immediate
-evalBinOp "+" = (+)
-evalBinOp "-" = (-)
-evalBinOp "*" = (*)
-evalBinOp "/" = div
-evalBinOp "%" = mod
-evalBinOp "&" = (.&.)
-evalBinOp "|" = (.|.)
-evalBinOp "^" = xor
-evalBinOp op = error ("evalBinOp: Invalid operand encountered: " ++ op)
-
-evalUnOp :: Operand -> Immediate -> Immediate
-evalUnOp "~" = (255 -)
-evalUnOp op = error ("evalUnOp: Invalid operand encountered: " ++ op)
 
 
 
