@@ -69,14 +69,14 @@ semS (pos, Declare t v) = do
     Nothing -> put (M.insert v t st, pos)
     _       -> throwSemError ("The variable \"" ++ v ++ "\" was already" ++
                               " declared.")
-semS (pos, Decrease v) =
+semS (pos, Decrease v) = do
   updatePos pos
   checkDecl v (
     \t -> case t of
       MaliceInt -> return ()
       _         -> throwSemError ("Trying to decrease var \"" ++ v ++
                                   " of type \"" ++ show t ++ "\"."))
-semS (pos, Increase v) =
+semS (pos, Increase v) = do
   updatePos pos
   checkDecl v (
     \t -> case t of
