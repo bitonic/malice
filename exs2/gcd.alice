@@ -1,0 +1,17 @@
+x was a number and y was a number.
+"Give first number:\n> " said Alice, what was x?
+"Give second number:\n> " said Alice, what was y?
+"The greatest common divisor is: " said Alice.
+perhaps (y > x) so
+  gcd(y, x) spoke.
+or
+  gcd(x, y) spoke.
+Alice was unsure which.
+"\n" said Alice.
+
+The room gcd(number x, number y) contained a number
+  perhaps (y == 0) so
+    Alice found x.
+  or
+    Alice found gcd(y, x % y).
+  Alice was unsure which. 

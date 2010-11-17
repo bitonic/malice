@@ -1,0 +1,15 @@
+i was a number and i became 100000.
+x was a number and y was a number and z was a number.
+
+x became 10 and y became 1050 and "Tell me the z value\n> " said Alice and what was z?
+
+eventually ( i == 0 ) because
+  x became x+y.
+  y became z+x.
+  z became z-x+y.
+  i drank.
+enough times.
+
+"The result is: x = " said Alice and x spoke and ", y = " said Alice and y spoke and ", z = " said Alice and z spoke.
+
+Alice found 0.

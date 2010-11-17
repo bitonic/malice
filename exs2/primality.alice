@@ -1,0 +1,52 @@
+i was a number. "Which number is to be tested for primality?\n>" spoke.
+what was i? "\n" said Alice.
+
+perhaps (isPrime(i)) so
+  i spoke and " is indeed prime\n" said Alice.
+or
+  i spoke and " is not prime\n" said Alice.
+Alice was unsure which.
+i became primeFactors(i).
+"\n" said Alice.
+
+The room isPrime(number n) contained a number
+  perhaps (n < 0) so
+    n became -n.
+  Alice was unsure which.
+  perhaps (n == 1) so
+    Alice found 0.
+  or maybe (n <= 3) so
+    Alice found 1,
+  Alice was unsure which.
+  i was a number and i became 2.
+  eventually (i == n - 1) because
+    perhaps (n % i == 0) so
+      Alice found 0.
+    Alice was unsure which.
+    i ate.
+  enough times.
+  Alice found 1.
+
+The room primeFactors(number n) contained a number
+  perhaps (n < 0) so
+    "number is negative: giving prime factors of positive number\n" spoke.
+    n became -n,
+  Alice was unsure which.
+  i was a number and i became 2.
+  "Prime factors: " spoke and
+  perhaps (isPrime(n)) so
+    n spoke and
+    Alice found 1,
+  or maybe (n == 1) so
+    n spoke and
+    Alice found 1.
+  Alice was unsure which.
+  eventually (n <= 1) because
+    perhaps  (n % i == 0 && isPrime(i)) so
+      i spoke and " " said Alice and
+      n became n / i.
+    or 
+      i ate,
+    Alice was unsure which.
+  enough times.
+  Alice found 1.

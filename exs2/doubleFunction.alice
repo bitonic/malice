@@ -1,0 +1,18 @@
+x was a number and "Tell me x's number please:\n> " said Alice and what was x?
+y was a number and "Tell me y's number please:\n> " said Alice and what was y?
+
+z was a number and z became fun1(x, y).
+
+z spoke.
+
+
+The room fun2 ( number l, number m ) contained a number
+  l became m + l.
+
+  Alice found l.
+
+The room fun1 ( number s, number t ) contained a number
+  Alice found fun2(s,t).
+
+
+

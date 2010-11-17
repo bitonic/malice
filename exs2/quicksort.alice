@@ -1,0 +1,51 @@
+size was a number. "How many elements to sort?\n> " said Alice.
+what was size?
+eventually (size > 0) because
+  "number of elements must be > 0\n>" said Alice but
+  what was size?
+enough times.
+arr had size number.
+i was a number but i became 1.
+eventually (i > size) because
+  "Give element number " spoke and i spoke then "\n> " said Alice.
+  what was arr's i piece?
+  i ate.
+enough times.
+quicksort(arr, 1, size).
+"The sorted array is:\n" said Alice.
+i became 1.
+eventually (i > size) because
+  arr's i piece spoke and "\n" said Alice.
+  i ate.
+enough times.
+
+
+The room partition(spider number arr, number left, number right, number pivot) contained a number
+  pivotValue was a number and pivotValue became arr's pivot piece.
+  arr's pivot piece became arr's right piece and arr's right piece became pivotValue.
+  storeIndex was a number and storeIndex became left.
+  i was a number and i became left.
+  temp was a number.
+  eventually (i >= right) because
+    perhaps (arr's i piece <= pivotValue) so
+      temp became arr's i piece.
+      arr's i piece became arr's storeIndex piece.
+      arr's storeIndex piece became temp.
+      storeIndex ate.
+    Alice was unsure.
+    i ate.
+  enough times.
+  temp became arr's storeIndex piece.
+  arr's storeIndex piece became arr's right piece.
+  arr's right piece became temp.
+  Alice found storeIndex.
+
+
+The room quicksort(spider number arr, number left, number right) contained a number
+  perhaps (right > left) so
+    pivotIndex was a number and pivotIndex became (left + (right - left)/2).
+    x was a number and x became 1.
+    pivotIndex became partition(arr, left, right, pivotIndex).
+    quicksort(arr, left, pivotIndex - 1).
+    quicksort(arr, pivotIndex + 1, right).
+  Alice was unsure.

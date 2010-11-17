@@ -1,0 +1,16 @@
+"This test computes the answer to the Ackermann function" thought Alice.
+"What was i?\n> " said Alice.
+i was a number, what was i?
+"What was j?\n> " said Alice.
+j was a number, what was j?
+"Ackermann (" spoke and i spoke then ", " said Alice and j spoke.
+") is: " said Alice and ack(i, j) spoke and "\n" spoke.
+
+The room ack(number m, number n) contained a number
+  perhaps (m == 0) so
+    Alice found n + 1.
+  or maybe (m > 0 && n == 0) so
+    Alice found ack (m - 1, 1).
+  or maybe (m > 0 && n > 0) so
+    Alice found ack (m-1, ack (m, n - 1)).
+  Alice was unsure which.

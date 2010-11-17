@@ -1,0 +1,54 @@
+"Bubble sort, lawl" thought Alice.
+
+bundleSize was a number and bundleSize became 10.
+"How much needs sorted? \n" said Alice.
+what was bundleSize?
+sortBundle had bundleSize number.
+counter was a number and counter became 1.
+
+eventually (counter > bundleSize) because
+  "What was in bundle " said Alice and counter spoke and "?\n" said Alice.
+  what was sortBundle's counter piece.
+  "\n" spoke.
+  counter ate.
+enough times.
+
+
+counter became 1.
+
+"------------------------------------------\n" said Alice.
+"Let me read that back to you!\n" said Alice.
+
+
+eventually (counter > bundleSize) because
+  "Piece " said Alice and counter spoke, " was " spoke and sortBundle's counter piece spoke and "\n" said Alice.
+  counter ate.
+enough times.
+
+"------------------------------------------\n" said Alice.
+
+counter became bundleSize.
+inner was a number.
+
+eventually (counter < 1) because
+  inner became 1.
+  eventually (inner >= counter) because
+     perhaps (sortBundle's inner piece > sortBundle's inner + 1 piece) so
+       k was a number and k became sortBundle's inner + 1 piece,
+       sortBundle's inner + 1 piece became sortBundle's inner piece,
+       sortBundle's inner piece became k.
+     Alice was unsure.
+     inner ate.
+  enough times.
+  counter drank.
+enough times.
+
+"------------------------------------------\n" said Alice.
+"Pseudo sorted array go!\n" said Alice.
+counter became 1.
+eventually (counter > bundleSize) because
+  "Piece " said Alice and counter spoke, " was " said Alice and sortBundle's counter piece spoke and "\n" said Alice.
+  counter ate.
+enough times.
+
+"------------------------------------------\n" said Alice.

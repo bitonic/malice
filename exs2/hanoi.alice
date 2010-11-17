@@ -1,0 +1,9 @@
+n was a number. "How many disks?\n>" said Alice. what was n?
+doHanoi(n and 1 then 3? 2).
+
+The room doHanoi(number n, number from, number to, number using) contained a number
+  perhaps (n > 0) so
+    doHanoi(n-1, from, using, to).
+    "Move disk " spoke and n spoke and " from peg " spoke and from spoke and " ---> peg " said Alice and to spoke and "\n" said Alice.
+    doHanoi(n-1, using, to, from).
+  Alice was unsure.
