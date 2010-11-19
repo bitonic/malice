@@ -20,18 +20,22 @@ import Text.ParserCombinators.Parsec.Pos ( newPos )
 -- The --Pos ones are used in the semantics, so that we
 -- can have nice error messages.
 
-data MaliceType = MaliceInt | MaliceChar
+data MaliceType = MaliceInt | MaliceChar | MaliceBool
                 deriving (Show, Eq)
 
 type StatementList = [Statement]
-type StatementListPos = [(SourcePos, Statement)]
+type StatementListPos = [StatementPos]
 
+type StatementPos = (SourcePos, Statement)
 data Statement
      = Assign String Expr
      | Declare MaliceType String
      | Decrease String
      | Increase String
      | Return Expr
+     -- Composite statements
+     | Until Expr StatementListPos
+     | Switch [(Expr, StatementPos)]
      deriving (Show, Eq)
 
 data Expr
@@ -50,15 +54,17 @@ unPosS (_, s) = s
               
 -- Language characteristics
 
-operators = "+-*/%^&|~"
+operators = ["+", "-", "*", "/", "%", "^", "&"
+             , "|", "~", "=="]
 
 def = emptyDef { identStart = letter
                , identLetter = alphaNum <|> char '_'
-               , opStart = oneOf operators
-               , opLetter = oneOf operators
-               , reservedOpNames = [[op] | op <- operators]
+               , opStart = oneOf $ concat $ map (\o -> [head o]) operators
+               , opLetter = oneOf $ concat operators
+               , reservedOpNames = operators
                , reservedNames = ["and", "but", "then", ".",
-                                  "too", "Alice", "found"]
+                                  "too", "Alice", "found", "perhaps",
+                                  "maybe", "eventually", "because"]
                }
 
 -- Generate useful parsers with makeTokenParser                 
@@ -74,9 +80,10 @@ TokenParser { identifier = p_identifier
 -- Actual parser
 mainparser :: Parser StatementListPos
 mainparser = do p_white
-                sl <- many1 (do {s <- p_statement;
-                                 p_separator >> return s})
+                sl <- many1 p_statementSep
                 return sl
+
+p_statementSep = p_statement >>= (\s -> p_separator >> return s)
 
 p_separator = try (p_string "too" >> p_separator')
           <|> p_separator'
@@ -87,9 +94,8 @@ p_separator' = choice $ map p_string [ "and", "but", "then", ".", ","]
 p_statement = do
   pos <- getPosition
   s <- (try p_return
-        <|> do { v <- p_identifier;
-                 p_statement_id v;
-               }
+        <|> try (p_identifier >>= p_statement_id)
+        <|> p_until
         <?> "statement")
   return (pos, s)
 
@@ -112,11 +118,36 @@ p_declare v = do
 
 p_assign v = p_string "became" >> liftM (Assign v) p_expr
 
+-- Composite statements
+p_until = do
+  p_string "eventually"
+  e <- p_expr
+  p_string "because"
+  sl <- manyTill p_statementSep (try (p_string "enough" >>
+                                 p_string "times"))
+  return $ Until e sl
+
+p_switch = do 
+  p_string "perhaps"
+  e <- p_expr
+  p_string "so"
+  s <- p_statement
+  many p_switch' >>= (return $ Switch $ (:) (e, s))
+
+p_switch' = do
+  p_string "or" >> p_string "maybe"
+  e <- p_expr
+  p_string "so"
+  s <- p_statement
+  return (e, s)
+  
+
 -- Expression
 p_expr = buildExpressionParser table term <?> "expression"
 table = [ [prefixOp "~"]
         , map infixOp ["*", "/", "%"]
         , map infixOp ["+", "-"]
+        , [infixOp "=="]
         , [infixOp "&"]
         , [infixOp "^"]
         , [infixOp "|"]
@@ -138,7 +169,7 @@ p_int32 = do
   int <- p_integer
   return (fromIntegral int :: Int32)
   
-p_operator = choice $ map p_string [[op] | op <- operators]
+p_operator = choice $ map p_string operators
 
 -- Utils
 p_string = p_lexeme . string
