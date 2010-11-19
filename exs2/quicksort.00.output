@@ -1,0 +1,23 @@
+How many elements to sort?
+> number of elements must be > 0
+>Give element number 1
+> Give element number 2
+> Give element number 3
+> Give element number 4
+> Give element number 5
+> Give element number 6
+> Give element number 7
+> Give element number 8
+> Give element number 9
+> Give element number 10
+> The sorted array is:
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
