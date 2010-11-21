@@ -32,7 +32,7 @@ data StatementAct
      | Return Expr
      -- Composite statements
      | Until Expr StatementList
-     | Switch [(Expr, Statement)]
+     | IfElse [(Expr, StatementList)]
      deriving (Show, Eq)
 
 data Expr
@@ -52,7 +52,7 @@ operators = ["+", "-", "*", "/", "%", "^", "&", "|", "~",
 
 def = emptyDef { identStart = letter
                , identLetter = alphaNum <|> char '_'
-               , opStart = oneOf $ concat $ map (\o -> [head o]) operators
+               , opStart = oneOf $ concatMap (\o -> [head o]) operators
                , opLetter = oneOf $ concat operators
                , reservedOpNames = operators
                , reservedNames = ["and", "but", "then", ".",
@@ -72,26 +72,24 @@ TokenParser { identifier = p_identifier
 
 -- Actual parser
 mainparser :: Parser StatementList
-mainparser = do p_white
-                sl <- many1 p_statement
-                return sl
+mainparser = p_white >> many1 p_statement
 
-p_separator s = s <* (try (p_string "too" >> p_separator')
-                      <|> p_separator'
-                      <?> "statement separator")
+p_separator = try (p_string "too" >> p_separator')
+              <|> p_separator'
+              <?> "statement separator"
   where p_separator' = choice $ map p_string [ "and", "but", "then", ".", ","]
 
 -- Statement
 p_statement = do
   pos <- getPosition
   s <- (try p_return
-        <|> try (p_separator $ p_identifier >>= p_statement_id)
-        <|> try (p_separator $ p_until)
-        <|> p_switch
+        <|> try ((p_identifier >>= p_statement_id) <* p_separator)
+        <|> try (p_until <* p_string ".")
+        <|> p_ifelse <* p_string "."
         <?> "statement")
   return (pos, s)
 
-p_return = p_string "Alice" >> p_string "found" >> liftM Return p_expr
+p_return = p_cstring "Alice found" >> liftM Return p_expr
 
 p_statement_id v = try (p_incdec v)
                <|> try (p_declare v)
@@ -115,18 +113,20 @@ p_until = do
   p_string "eventually"
   e <- p_expr
   p_string "because"
-  liftM (Until e) $ manyTill p_statement (try (p_string "enough" >>
-                                               p_string "times"))
+  liftM (Until e) $ manyTill p_statement $ try (p_cstring "enough times")
 
-p_switch = do 
+p_ifelse = do 
   p_string "perhaps"
   e <- p_expr
   p_string "so"
-  s <- p_statement
-  liftM (Switch . (:) (e, s)) $ many p_switch'
-  where p_switch' = do
-          p_string "or" >> p_string "maybe"
-          liftM2 (,) (p_expr <* p_string "so") p_statement
+  s <- many p_statement
+  liftM (IfElse . (:) (e, s)) $ manyTill elseifs $
+    try (p_cstring "Alice was unsure" >>
+         optional (p_string "which"))
+  where
+    elseifs = do
+      p_cstring "or maybe"
+      liftM2 (,) (p_expr <* p_string "so") (many p_statement)
 
 -- Expression
 p_expr = buildExpressionParser table term <?> "expression"
@@ -162,6 +162,8 @@ p_operator = choice $ map p_string operators
 
 -- Utils
 p_string = p_lexeme . string
+
+p_cstring = mapM p_string . words
 
 p <* q = p >>= (\x -> q >> return x)
 
