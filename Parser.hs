@@ -33,7 +33,10 @@ data StatementAct
      -- Composite statements
      | Until Expr StatementList
      | IfElse [(Expr, StatementList)]
+     | Function String FunctionArgs MaliceType StatementList
      deriving (Show, Eq)
+
+type FunctionArgs = [(String, MaliceType)]
 
 data Expr
      = UnOp String Expr
@@ -65,9 +68,9 @@ TokenParser { identifier = p_identifier
             , reservedOp = p_reservedOp
             , integer = p_integer
             , whiteSpace = p_white
-            , lexeme = p_lexeme
             , charLiteral = p_letter
             , parens = p_parens
+            , lexeme = p_lexeme
             } = makeTokenParser def
 
 -- Actual parser
@@ -85,7 +88,8 @@ p_statement = do
   s <- (try p_return
         <|> try ((p_identifier >>= p_statement_id) <* p_separator)
         <|> try (p_until <* p_string ".")
-        <|> p_ifelse <* p_string "."
+        <|> try (p_ifelse <* p_string ".")
+        <|> p_function
         <?> "statement")
   return (pos, s)
 
@@ -128,6 +132,23 @@ p_ifelse = do
       p_cstring "or maybe"
       liftM2 (,) (p_expr <* p_string "so") (many p_statement)
 
+p_function = do
+  p_white
+  p_cstring "The room"
+  name <- p_identifier
+  args <-  p_parens $ sepBy (liftM2 (flip (,)) p_type p_identifier) (p_string ",")
+  p_cstring "contained a"
+  ret <- p_type
+  sl <- manyTill p_statement (
+    eof
+    <|> (try (lookAhead (p_white >> p_cstring "The room")) >> return ())
+    <?> "function declaration")
+  return $ Function name args ret sl
+
+p_type = liftM stringToType (p_string "number"
+                             <|> p_string "letter"
+                             <?> "type")
+         
 -- Expression
 p_expr = buildExpressionParser table term <?> "expression"
 table = [ [prefixOp "~"]
@@ -166,6 +187,9 @@ p_string = p_lexeme . string
 p_cstring = mapM p_string . words
 
 p <* q = p >>= (\x -> q >> return x)
+
+stringToType "number" = MaliceInt
+stringToType "letter" = MaliceChar
 
 -- useful for debugging when you don't want the positions
 showSL :: StatementList -> String
