@@ -30,6 +30,8 @@ data StatementAct
      | Decrease String
      | Increase String
      | Return Expr
+     | Print String
+     | Get String
      -- Composite statements
      | Until Expr StatementList
      | IfElse [(Expr, StatementList)]
@@ -41,6 +43,7 @@ type FunctionArgs = [(String, MaliceType)]
 data Expr
      = UnOp String Expr
      | BinOp String Expr Expr
+     | FunctionCall String [Expr]
      | Int Int32
      | Char Char
      | Var String
@@ -85,8 +88,10 @@ p_separator = try (p_string "too" >> p_separator')
 -- Statement
 p_statement = do
   pos <- getPosition
-  s <- (try p_return
+  s <- (    try (p_return <* p_separator)
         <|> try ((p_identifier >>= p_statement_id) <* p_separator)
+        <|> try (p_print <* p_separator)
+        <|> try (p_get <* p_string "?")
         <|> try (p_until <* p_string ".")
         <|> try (p_ifelse <* p_string ".")
         <|> p_function
@@ -104,14 +109,18 @@ p_incdec v = choice [ p_string "ate" >> return (Increase v)
                     ]
 
 p_declare v = do
-  p_string "was"
-  p_string "a"
+  p_cstring "was a"
   choice [ p_string "number" >> return (Declare MaliceInt v)
          , p_string "letter" >> return (Declare MaliceChar v)
          ]
 
 p_assign v = p_string "became" >> liftM (Assign v) p_expr
 
+p_print = p_string "\"" >>
+          liftM Print (manyTill anyChar (p_string "\"") <* p_cstring "thought Alice")
+
+p_get = p_cstring "what was" >> liftM Get p_identifier
+          
 -- Composite statements
 p_until = do
   p_string "eventually"
@@ -171,6 +180,9 @@ infixOp op
 
 term = (lookAhead p_operator >> p_expr)
        <|> p_parens p_expr
+       <|> try (do { f <- p_identifier;
+                     liftM (FunctionCall f) (p_parens $ sepBy p_expr (p_string ","));
+                   })
        <|> liftM Var p_identifier
        <|> liftM Char p_letter
        <|> liftM Int p_int32
