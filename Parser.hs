@@ -30,8 +30,10 @@ data StatementAct
      | Decrease String
      | Increase String
      | Return Expr
-     | Print String
+     | PrintString String
+     | PrintExpr Expr
      | Get String
+     | ProgramDoc String
      -- Composite statements
      | Until Expr StatementList
      | IfElse [(Expr, StatementList)]
@@ -90,10 +92,12 @@ p_statement = do
   pos <- getPosition
   s <- (    try (p_return <* p_separator)
         <|> try ((p_identifier >>= p_statement_id) <* p_separator)
-        <|> try (p_print <* p_separator)
+        <|> try (p_printstring <* p_separator)
+        <|> try (p_printexpr <* p_separator)
         <|> try (p_get <* p_string "?")
-        <|> try (p_until <* p_string ".")
-        <|> try (p_ifelse <* p_string ".")
+        <|> try (p_programdoc <* p_separator)
+        <|> try (p_until <* p_separator)
+        <|> try (p_ifelse <* p_separator)
         <|> p_function
         <?> "statement")
   return (pos, s)
@@ -116,10 +120,15 @@ p_declare v = do
 
 p_assign v = p_string "became" >> liftM (Assign v) p_expr
 
-p_print = p_string "\"" >>
-          liftM Print (manyTill anyChar (p_string "\"") <* p_cstring "thought Alice")
+p_printstring = liftM PrintString (p_quotedstring <*
+                                   (try (p_cstring "said Alice")
+                                    <|> p_cstring "spoke"))
+
+p_printexpr = liftM PrintExpr (p_expr <* p_cstring "spoke")
 
 p_get = p_cstring "what was" >> liftM Get p_identifier
+
+p_programdoc = liftM ProgramDoc (p_quotedstring <* p_cstring "thought Alice")
           
 -- Composite statements
 p_until = do
@@ -197,6 +206,8 @@ p_operator = choice $ map p_string operators
 p_string = p_lexeme . string
 
 p_cstring = mapM p_string . words
+
+p_quotedstring = p_string "\"" >> manyTill anyChar (p_string "\"")
 
 p <* q = p >>= (\x -> q >> return x)
 
