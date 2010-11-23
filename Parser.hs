@@ -18,15 +18,21 @@ import Text.ParserCombinators.Parsec.Pos ( newPos )
 -- The --Pos ones are used in the semantics, so that we
 -- can have nice error messages.
 
-data MaliceType = MaliceInt | MaliceChar | MaliceBool
+data MaliceType = MaliceInt
+                | MaliceChar
+                | MaliceArray MaliceType ArraySize
                 deriving (Show, Eq)
+                        
+type ArraySize = Integer
 
 type StatementList = [Statement]
 
 type Statement = (SourcePos, StatementAct)
 data StatementAct
      = Assign String Expr
+     | AssignArray Expr Expr
      | Declare MaliceType String
+     | DeclareArray String MaliceType ArraySize
      | Decrease String
      | Increase String
      | Return Expr
@@ -49,6 +55,7 @@ data Expr
      | Int Int32
      | Char Char
      | Var String
+     | Array String Expr
      deriving (Show, Eq)
               
 -- Language characteristics
@@ -72,6 +79,7 @@ def = emptyDef { identStart = letter
 TokenParser { identifier = p_identifier
             , reservedOp = p_reservedOp
             , integer = p_integer
+            , natural = p_natural
             , whiteSpace = p_white
             , charLiteral = p_letter
             , parens = p_parens
@@ -92,6 +100,7 @@ p_statement = do
   pos <- getPosition
   s <- (    try (p_return <* p_separator)
         <|> try ((p_identifier >>= p_statement_id) <* p_separator)
+        <|> try (p_assignarray <* p_separator)
         <|> try (p_printstring <* p_separator)
         <|> try (p_printexpr <* p_separator)
         <|> try (p_get <* p_string "?")
@@ -106,7 +115,8 @@ p_return = p_cstring "Alice found" >> liftM Return p_expr
 
 p_statement_id v = try (p_incdec v)
                <|> try (p_declare v)
-               <|> p_assign v
+               <|> try (p_assign v)
+               <|> p_declarearray v
 
 p_incdec v = choice [ p_string "ate" >> return (Increase v)
                     , p_string "drank" >> return (Decrease v)
@@ -118,8 +128,19 @@ p_declare v = do
          , p_string "letter" >> return (Declare MaliceChar v)
          ]
 
+p_declarearray v = do
+  p_string "had"
+  size <- p_natural
+  t <- p_type
+  return (DeclareArray v t size)
+  
 p_assign v = p_string "became" >> liftM (Assign v) p_expr
 
+p_assignarray = do
+  arr <- p_arrayel
+  p_string "became"
+  liftM (AssignArray arr) p_expr
+  
 p_printstring = liftM PrintString (p_quotedstring <*
                                    (try (p_cstring "said Alice")
                                     <|> p_cstring "spoke"))
@@ -192,9 +213,17 @@ term = (lookAhead p_operator >> p_expr)
        <|> try (do { f <- p_identifier;
                      liftM (FunctionCall f) (p_parens $ sepBy p_expr (p_string ","));
                    })
+       <|> try p_arrayel
        <|> liftM Var p_identifier
        <|> liftM Char p_letter
        <|> liftM Int p_int32
+
+p_arrayel = do
+  id <- p_identifier
+  p_string "'s"
+  pos <- p_expr
+  p_string "piece"
+  return (Array id pos)
 
 p_int32 = do
   int <- p_integer
