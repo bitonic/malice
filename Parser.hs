@@ -20,11 +20,9 @@ import Text.ParserCombinators.Parsec.Pos ( newPos )
 
 data MaliceType = MaliceInt
                 | MaliceChar
-                | MaliceArray MaliceType ArraySize
+                | MaliceArray MaliceType Int32
                 deriving (Show, Eq)
                         
-type ArraySize = Integer
-
 type StatementList = [Statement]
 
 type Statement = (SourcePos, StatementAct)
@@ -32,7 +30,7 @@ data StatementAct
      = Assign String Expr
      | AssignArray Expr Expr
      | Declare MaliceType String
-     | DeclareArray String MaliceType ArraySize
+     | DeclareArray String MaliceType Expr
      | Decrease String
      | Increase String
      | Return Expr
@@ -40,10 +38,12 @@ data StatementAct
      | PrintExpr Expr
      | Get String
      | ProgramDoc String
+     | ChangerCall String String
      -- Composite statements
      | Until Expr StatementList
      | IfElse [(Expr, StatementList)]
      | Function String FunctionArgs MaliceType StatementList
+     | Changer String MaliceType StatementList
      deriving (Show, Eq)
 
 type FunctionArgs = [(String, MaliceType)]
@@ -107,7 +107,9 @@ p_statement = do
         <|> try (p_programdoc <* p_separator)
         <|> try (p_until <* p_separator)
         <|> try (p_ifelse <* p_separator)
-        <|> p_function
+        <|> try p_function
+        <|> try p_changer
+        <|> p_changercall <* p_separator
         <?> "statement")
   return (pos, s)
 
@@ -130,7 +132,7 @@ p_declare v = do
 
 p_declarearray v = do
   p_string "had"
-  size <- p_natural
+  size <- p_expr
   t <- p_type
   return (DeclareArray v t size)
   
@@ -178,11 +180,26 @@ p_function = do
   args <-  p_parens $ sepBy (liftM2 (flip (,)) p_type p_identifier) (p_string ",")
   p_cstring "contained a"
   ret <- p_type
-  sl <- manyTill p_statement (
-    eof
-    <|> (try (lookAhead (p_white >> p_cstring "The room")) >> return ())
-    <?> "function declaration")
+  sl <- manyTill p_statement p_nextfunction
   return $ Function name args ret sl
+
+p_changer = do
+  p_white
+  p_cstring "The Looking-Glass"
+  name <- p_identifier
+  p_cstring "changed a"
+  t <- p_type
+  liftM (Changer name t) $ manyTill p_statement p_nextfunction 
+  
+p_nextfunction =
+  eof
+  <|> (try (lookAhead (p_white >> p_string "The")) >> return ())
+  <?> "function or Looking-Glass declaration"
+
+p_changercall = do
+  var <- p_identifier
+  p_cstring "went through"
+  liftM ((flip ChangerCall) var) p_identifier
 
 p_type = liftM stringToType (p_string "number"
                              <|> p_string "letter"

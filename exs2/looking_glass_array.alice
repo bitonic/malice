@@ -9,8 +9,8 @@ eventually (i <  1) because
 enough times.
 
 The Looking-Glass troubles changed a number
-i was a number and i became 1.
-eventually (i > 10) because
- it's i piece became i.
- i ate.
-enough times.
+  i was a number and i became 1.
+  eventually (i > 10) because
+    it's i piece became i.
+    i ate.
+  enough times.
