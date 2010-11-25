@@ -88,7 +88,7 @@ TokenParser { identifier = p_identifier
 
 -- Actual parser
 mainparser :: Parser StatementList
-mainparser = p_white >> many1 p_statement
+mainparser = p_white >> manyTill p_statement eof
 
 p_separator = try (p_string "too" >> p_separator')
               <|> p_separator'
