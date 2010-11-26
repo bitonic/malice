@@ -1,7 +1,5 @@
 perhaps (m == 0) so
-  x became 0.
-or maybe (m > 0 && n == 0) so
-  y became 5.
+  Alice found 1.
 or
-  y became 4.
-Alice was unsure which.
+  Alice found n * fact(n-1).
+Alice was unsure.

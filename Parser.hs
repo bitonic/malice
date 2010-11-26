@@ -165,14 +165,14 @@ p_until = do
   liftM (Until e) $ manyTill p_statement $ try (p_cstring "enough times")
 
 p_ifelse = do 
-  p_string "perhaps"
+  (p_string "perhaps" <|> p_string "either")
   e <- p_expr
   p_string "so"
   s <- many p_statement
-  rest <- manyTill elseifs (
+  rest <- manyTill elseifs $ try (
     try (p_string "or" >> notFollowedBy (p_string "maybe" >> return 'x'))
     <|> end)
-  finalOr <- optionMaybe (manyTill p_statement end)
+  finalOr <- optionMaybe (manyTill p_statement (try end))
   case finalOr of
     Just s' -> return $ IfElse $ [(e, s)] ++ rest ++ [(Int 1, s')]
     Nothing -> return $ IfElse $ (e, s) : rest
