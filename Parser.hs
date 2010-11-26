@@ -27,18 +27,17 @@ type StatementList = [Statement]
 
 type Statement = (SourcePos, StatementAct)
 data StatementAct
-     = Assign String Expr
-     | AssignArray Expr Expr
+     = Assign Identifier Expr
      | Declare MaliceType String
      | DeclareArray String MaliceType Expr
-     | Decrease String
-     | Increase String
+     | Decrease Identifier
+     | Increase Identifier
      | Return Expr
      | PrintString String
      | PrintExpr Expr
-     | Get String
+     | Get Identifier
      | ProgramDoc String
-     | ChangerCall String String
+     | ChangerCall String Identifier
      -- Composite statements
      | Until Expr StatementList
      | IfElse [(Expr, StatementList)]
@@ -48,14 +47,17 @@ data StatementAct
 
 type FunctionArgs = [(String, MaliceType)]
 
+data Identifier = Single String
+                | Array String Expr -- Name position
+                deriving (Show, Eq)
+
 data Expr
      = UnOp String Expr
      | BinOp String Expr Expr
      | FunctionCall String [Expr]
      | Int Int32
      | Char Char
-     | Var String
-     | Array String Expr
+     | Var Identifier
      deriving (Show, Eq)
               
 -- Language characteristics
@@ -76,7 +78,7 @@ def = emptyDef { identStart = letter
                }
 
 -- Generate useful parsers with makeTokenParser                 
-TokenParser { identifier = p_identifier
+TokenParser { identifier = p_varName
             , reservedOp = p_reservedOp
             , integer = p_integer
             , natural = p_natural
@@ -85,6 +87,16 @@ TokenParser { identifier = p_identifier
             , parens = p_parens
             , lexeme = p_lexeme
             } = makeTokenParser def
+
+p_identifier = try p_arrayEl
+               <|> liftM Single p_varName
+               <?> "identifier"
+p_arrayEl = do
+  id <- p_varName
+  p_string "'s"
+  pos <- p_expr
+  p_string "piece"
+  return (Array id pos)
 
 -- Actual parser
 mainparser :: Parser StatementList
@@ -98,27 +110,27 @@ p_separator = try (p_string "too" >> p_separator')
 -- Statement
 p_statement = do
   pos <- getPosition
-  s <- (    try (p_return <* p_separator)
-        <|> try ((p_identifier >>= p_statement_id) <* p_separator)
-        <|> try (p_assignarray <* p_separator)
+  s <- (try (p_return <* p_separator)
+        <|> try ((p_varName >>= p_declare) <* p_separator)
+        <|> try ((p_varName >>= p_declarearray) <* p_separator)
+        <|> try ((p_identifier >>= p_incdec) <* p_separator)
+        <|> try ((p_identifier >>= p_assign) <* p_separator)
         <|> try (p_printstring <* p_separator)
         <|> try (p_printexpr <* p_separator)
-        <|> try (p_get <* p_string "?")
+        <|> try (p_get <* (p_separator <|> p_string "?"))
         <|> try (p_programdoc <* p_separator)
         <|> try (p_until <* p_separator)
         <|> try (p_ifelse <* p_separator)
+        <|> try (p_changercall <* p_separator)
         <|> try p_function
-        <|> try p_changer
-        <|> p_changercall <* p_separator
+        <|> p_changer
         <?> "statement")
   return (pos, s)
 
 p_return = p_cstring "Alice found" >> liftM Return p_expr
 
 p_statement_id v = try (p_incdec v)
-               <|> try (p_declare v)
                <|> try (p_assign v)
-               <|> p_declarearray v
 
 p_incdec v = choice [ p_string "ate" >> return (Increase v)
                     , p_string "drank" >> return (Decrease v)
@@ -138,11 +150,6 @@ p_declarearray v = do
   
 p_assign v = p_string "became" >> liftM (Assign v) p_expr
 
-p_assignarray = do
-  arr <- p_arrayel
-  p_string "became"
-  liftM (AssignArray arr) p_expr
-  
 p_printstring = liftM PrintString (p_quotedstring <*
                                    (try (p_cstring "said Alice")
                                     <|> p_cstring "spoke"))
@@ -156,7 +163,7 @@ p_programdoc = liftM ProgramDoc (p_quotedstring <* p_cstring "thought Alice")
 -- Composite statements
 p_until = do
   p_string "eventually"
-  e <- p_expr
+  e <- p_parens p_expr
   p_string "because"
   liftM (Until e) $ manyTill p_statement $ try (p_cstring "enough times")
 
@@ -176,8 +183,8 @@ p_ifelse = do
 p_function = do
   p_white
   p_cstring "The room"
-  name <- p_identifier
-  args <-  p_parens $ sepBy (liftM2 (flip (,)) p_type p_identifier) (p_string ",")
+  name <- p_varName
+  args <-  p_parens $ sepBy (liftM2 (flip (,)) p_type p_varName) (p_string ",")
   p_cstring "contained a"
   ret <- p_type
   sl <- manyTill p_statement p_nextfunction
@@ -186,7 +193,7 @@ p_function = do
 p_changer = do
   p_white
   p_cstring "The Looking-Glass"
-  name <- p_identifier
+  name <- p_varName
   p_cstring "changed a"
   t <- p_type
   liftM (Changer name t) $ manyTill p_statement p_nextfunction 
@@ -199,7 +206,7 @@ p_nextfunction =
 p_changercall = do
   var <- p_identifier
   p_cstring "went through"
-  liftM ((flip ChangerCall) var) p_identifier
+  liftM ((flip ChangerCall) var) p_varName
 
 p_type = liftM stringToType (p_string "number"
                              <|> p_string "letter"
@@ -227,20 +234,13 @@ infixOp op
 
 term = (lookAhead p_operator >> p_expr)
        <|> p_parens p_expr
-       <|> try (do { f <- p_identifier;
+       <|> try (do { f <- p_varName;
                      liftM (FunctionCall f) (p_parens $ sepBy p_expr (p_string ","));
                    })
-       <|> try p_arrayel
        <|> liftM Var p_identifier
        <|> liftM Char p_letter
        <|> liftM Int p_int32
 
-p_arrayel = do
-  id <- p_identifier
-  p_string "'s"
-  pos <- p_expr
-  p_string "piece"
-  return (Array id pos)
 
 p_int32 = do
   int <- p_integer
