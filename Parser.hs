@@ -20,6 +20,7 @@ import Text.ParserCombinators.Parsec.Pos ( newPos )
 
 data MaliceType = MaliceInt
                 | MaliceChar
+                | MaliceString
                 | MaliceArray MaliceType Int32
                 deriving (Show, Eq)
                         
@@ -33,8 +34,7 @@ data StatementAct
      | Decrease Identifier
      | Increase Identifier
      | Return Expr
-     | PrintString String
-     | PrintExpr Expr
+     | Print Expr
      | Get Identifier
      | ProgramDoc String
      | ChangerCall String Identifier
@@ -57,13 +57,14 @@ data Expr
      | FunctionCall String [Expr]
      | Int Int32
      | Char Char
+     | String String
      | Var Identifier
      deriving (Show, Eq)
               
 -- Language characteristics
 
 operators = ["+", "-", "*", "/", "%", "^", "&", "|", "~",
-             "==", "<", ">", "&&", "||"
+             "==", "<", ">", ">=", "<=", "&&", "||", "!="
             ]
  
 
@@ -115,8 +116,7 @@ p_statement = do
         <|> try ((p_varName >>= p_declarearray) <* p_separator)
         <|> try ((p_identifier >>= p_incdec) <* p_separator)
         <|> try ((p_identifier >>= p_assign) <* p_separator)
-        <|> try (p_printstring <* p_separator)
-        <|> try (p_printexpr <* p_separator)
+        <|> try (p_print <* p_separator)
         <|> try (p_get <* (p_separator <|> p_string "?"))
         <|> try (p_programdoc <* p_separator)
         <|> try (p_until <* p_separator)
@@ -131,6 +131,7 @@ p_return = p_cstring "Alice found" >> liftM Return p_expr
 
 p_statement_id v = try (p_incdec v)
                <|> try (p_assign v)
+               <?> "assignment or decrease/increase"
 
 p_incdec v = choice [ p_string "ate" >> return (Increase v)
                     , p_string "drank" >> return (Decrease v)
@@ -138,9 +139,7 @@ p_incdec v = choice [ p_string "ate" >> return (Increase v)
 
 p_declare v = do
   p_cstring "was a"
-  choice [ p_string "number" >> return (Declare MaliceInt v)
-         , p_string "letter" >> return (Declare MaliceChar v)
-         ]
+  liftM ((flip Declare) v) p_type
 
 p_declarearray v = do
   p_string "had"
@@ -150,11 +149,9 @@ p_declarearray v = do
   
 p_assign v = p_string "became" >> liftM (Assign v) p_expr
 
-p_printstring = liftM PrintString (p_quotedstring <*
-                                   (try (p_cstring "said Alice")
-                                    <|> p_cstring "spoke"))
-
-p_printexpr = liftM PrintExpr (p_expr <* p_cstring "spoke")
+p_print = liftM Print (p_expr <*
+                       (try (p_cstring "spoke")
+                        <|> p_cstring "said Alice"))
 
 p_get = p_cstring "what was" >> liftM Get p_identifier
 
@@ -172,13 +169,17 @@ p_ifelse = do
   e <- p_expr
   p_string "so"
   s <- many p_statement
-  liftM (IfElse . (:) (e, s)) $ manyTill elseifs $
-    try (p_cstring "Alice was unsure" >>
-         optional (p_string "which"))
+  rest <- manyTill elseifs (
+    try (p_string "or" >> notFollowedBy (p_string "maybe" >> return 'x'))
+    <|> end)
+  finalOr <- optionMaybe (manyTill p_statement end)
+  case finalOr of
+    Just s' -> return $ IfElse $ [(e, s)] ++ rest ++ [(Int 1, s')]
+    Nothing -> return $ IfElse $ (e, s) : rest
   where
-    elseifs = do
-      p_cstring "or maybe"
-      liftM2 (,) (p_expr <* p_string "so") (many p_statement)
+    elseifs =
+      liftM2 (,) (p_cstring "or maybe" >> (p_expr <* p_string "so")) (many p_statement)
+    end = p_cstring "Alice was unsure" >> optional (p_string "which")
 
 p_function = do
   p_white
@@ -210,6 +211,7 @@ p_changercall = do
 
 p_type = liftM stringToType (p_string "number"
                              <|> p_string "letter"
+                             <|> p_string "sentence"
                              <?> "type")
          
 -- Expression
@@ -217,8 +219,8 @@ p_expr = buildExpressionParser table term <?> "expression"
 table = [ [prefixOp "~"]
         , map infixOp ["*", "/", "%"]
         , map infixOp ["+", "-"]
-        , map infixOp ["<", ">"]
-        , [infixOp "=="]
+        , map infixOp ["<", ">", ">=", "<="]
+        , map infixOp ["==", "!="]
         , [infixOp "&"]
         , [infixOp "^"]
         , [infixOp "|"]
@@ -237,10 +239,12 @@ term = (lookAhead p_operator >> p_expr)
        <|> try (do { f <- p_varName;
                      liftM (FunctionCall f) (p_parens $ sepBy p_expr (p_string ","));
                    })
+       <|> liftM String p_quotedstring
        <|> liftM Var p_identifier
        <|> liftM Char p_letter
        <|> liftM Int p_int32
 
+p_quotedstring = p_string "\"" >> manyTill anyChar (p_string "\"")
 
 p_int32 = do
   int <- p_integer
@@ -253,12 +257,11 @@ p_string = p_lexeme . string
 
 p_cstring = mapM p_string . words
 
-p_quotedstring = p_string "\"" >> manyTill anyChar (p_string "\"")
-
 p <* q = p >>= (\x -> q >> return x)
 
 stringToType "number" = MaliceInt
 stringToType "letter" = MaliceChar
+stringToType "sentence" = MaliceString
 
 -- useful for debugging when you don't want the positions
 showSL :: StatementList -> String

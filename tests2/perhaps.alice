@@ -2,8 +2,6 @@ perhaps (m == 0) so
   x became 0.
 or maybe (m > 0 && n == 0) so
   y became 5.
-or maybe (lul == 3) so
+or
   y became 4.
 Alice was unsure which.
-z ate.
-b drank.
