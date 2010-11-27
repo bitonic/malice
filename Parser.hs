@@ -226,7 +226,7 @@ p_type =
          
 -- Expression
 p_expr = buildExpressionParser table term <?> "expression"
-table = [ [prefixOp "~"]
+table = [ map prefixOp ["~", "-"]
         , map infixOp ["*", "/", "%"]
         , map infixOp ["+", "-"]
         , map infixOp ["<", ">", ">=", "<="]
@@ -259,7 +259,7 @@ p_functioncall = do
 p_quotedstring = p_string "\"" >> manyTill anyChar (p_string "\"")
 
 p_int32 = do
-  int <- p_integer
+  int <- p_natural
   return (fromIntegral int :: Int32)
   
 p_operator = choice $ map p_string operators
