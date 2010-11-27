@@ -21,7 +21,7 @@ import Text.ParserCombinators.Parsec.Pos ( newPos )
 data MaliceType = MaliceInt
                 | MaliceChar
                 | MaliceString
-                | MaliceArray MaliceType Int32
+                | MaliceArray MaliceType
                 deriving (Show, Eq)
                         
 type StatementList = [Statement]
@@ -38,6 +38,7 @@ data StatementAct
      | Get Identifier
      | ProgramDoc String
      | ChangerCall String Identifier
+     | FunctionCall Expr
      -- Composite statements
      | Until Expr StatementList
      | IfElse [(Expr, StatementList)]
@@ -54,11 +55,11 @@ data Identifier = Single String
 data Expr
      = UnOp String Expr
      | BinOp String Expr Expr
-     | FunctionCall String [Expr]
+     | FunctionOp String [Expr]
      | Int Int32
      | Char Char
      | String String
-     | Var Identifier
+     | Id Identifier
      deriving (Show, Eq)
               
 -- Language characteristics
@@ -106,7 +107,7 @@ mainparser = p_white >> manyTill p_statement eof
 p_separator = try (p_string "too" >> p_separator')
               <|> p_separator'
               <?> "statement separator"
-  where p_separator' = choice $ map p_string [ "and", "but", "then", ".", ","]
+  where p_separator' = choice $ map p_string [ "and", "but", "then", ".", ",", "?"]
 
 -- Statement
 p_statement = do
@@ -117,11 +118,12 @@ p_statement = do
         <|> try ((p_identifier >>= p_incdec) <* p_separator)
         <|> try ((p_identifier >>= p_assign) <* p_separator)
         <|> try (p_print <* p_separator)
-        <|> try (p_get <* (p_separator <|> p_string "?"))
+        <|> try (p_get <* p_separator)
         <|> try (p_programdoc <* p_separator)
         <|> try (p_until <* p_separator)
         <|> try (p_ifelse <* p_separator)
         <|> try (p_changercall <* p_separator)
+        <|> try (liftM FunctionCall p_functioncall <* p_separator)
         <|> try p_function
         <|> p_changer
         <?> "statement")
@@ -185,11 +187,15 @@ p_function = do
   p_white
   p_cstring "The room"
   name <- p_varName
-  args <-  p_parens $ sepBy (liftM2 (flip (,)) p_type p_varName) (p_string ",")
+  args <-  p_parens $ sepBy args (p_string ",")
   p_cstring "contained a"
   ret <- p_type
   sl <- manyTill p_statement p_nextfunction
   return $ Function name args ret sl
+  where
+    arrarg = liftM2 (,) p_varName p_type
+    vararg = liftM2 (flip (,)) p_type p_varName
+    args = try arrarg <|> vararg 
 
 p_changer = do
   p_white
@@ -197,7 +203,7 @@ p_changer = do
   name <- p_varName
   p_cstring "changed a"
   t <- p_type
-  liftM (Changer name t) $ manyTill p_statement p_nextfunction 
+  liftM (Changer name t) $ manyTill p_statement p_nextfunction
   
 p_nextfunction =
   eof
@@ -209,10 +215,14 @@ p_changercall = do
   p_cstring "went through"
   liftM ((flip ChangerCall) var) p_varName
 
-p_type = liftM stringToType (p_string "number"
-                             <|> p_string "letter"
-                             <|> p_string "sentence"
-                             <?> "type")
+p_type =
+  try (liftM MaliceArray (p_type' <* p_string "arr"))
+  <|> (p_type' >>= return)
+  where
+    p_type' = liftM stringToType (p_string "number"
+                                  <|> p_string "letter"
+                                  <|> p_string "sentence"
+                                  <?> "type")
          
 -- Expression
 p_expr = buildExpressionParser table term <?> "expression"
@@ -236,13 +246,15 @@ infixOp op
 
 term = (lookAhead p_operator >> p_expr)
        <|> p_parens p_expr
-       <|> try (do { f <- p_varName;
-                     liftM (FunctionCall f) (p_parens $ sepBy p_expr (p_string ","));
-                   })
+       <|> try p_functioncall
        <|> liftM String p_quotedstring
-       <|> liftM Var p_identifier
+       <|> liftM Id p_identifier
        <|> liftM Char p_letter
        <|> liftM Int p_int32
+
+p_functioncall = do
+  f <- p_varName
+  liftM (FunctionOp f) (p_parens $ sepBy p_expr p_separator);
 
 p_quotedstring = p_string "\"" >> manyTill anyChar (p_string "\"")
 
