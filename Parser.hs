@@ -3,7 +3,7 @@ module Parser
          maliceParser, maliceParseFile,
          MaliceType(..),
          StatementList, Statement(..), Expr(..),
-         SourcePos, newPos,
+         Position, AST(..)
        ) where
 
 import Data.Int ( Int32 )
@@ -12,7 +12,7 @@ import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr
 import Text.ParserCombinators.Parsec.Token
 import Text.ParserCombinators.Parsec.Language
-import Text.ParserCombinators.Parsec.Pos ( newPos )
+import Text.ParserCombinators.Parsec.Pos ( sourceLine, sourceColumn )
 
 -- Abstact Syntax Tree definition
 -- The --Pos ones are used in the semantics, so that we
@@ -24,9 +24,15 @@ data MaliceType = MaliceInt
                 | MaliceArray MaliceType
                 deriving (Show, Eq)
                         
+type Position = (Int, Int)
+
+data AST = AST String StatementList
+         deriving (Show, Eq)
+
 type StatementList = [Statement]
 
-type Statement = (SourcePos, StatementAct)
+type Statement = (Position, StatementAct)
+
 data StatementAct
      = Assign Identifier Expr
      | Declare MaliceType String
@@ -101,8 +107,8 @@ p_arrayEl = do
   return (Array id pos)
 
 -- Actual parser
-mainparser :: Parser StatementList
-mainparser = p_white >> manyTill p_statement eof
+mainparser :: String -> Parser AST
+mainparser f = p_white >> liftM (AST f) (manyTill p_statement eof)
 
 p_separator = try (p_string "too" >> p_separator')
               <|> p_separator'
@@ -111,7 +117,7 @@ p_separator = try (p_string "too" >> p_separator')
 
 -- Statement
 p_statement = do
-  pos <- getPosition
+  p <- getPosition
   s <- (try (p_return <* p_separator)
         <|> try ((p_varName >>= p_declare) <* p_separator)
         <|> try ((p_varName >>= p_declarearray) <* p_separator)
@@ -127,7 +133,7 @@ p_statement = do
         <|> try p_function
         <|> p_changer
         <?> "statement")
-  return (pos, s)
+  return ((sourceLine p, sourceColumn p), s)
 
 p_return = p_cstring "Alice found" >> liftM Return p_expr
 
@@ -280,11 +286,11 @@ showSL :: StatementList -> String
 showSL = show . map snd
 
 -- parser from string
-maliceParser :: String -> String -> Either ParseError StatementList
-maliceParser s f = parse mainparser f s
+maliceParser :: String -> String -> Either ParseError AST
+maliceParser s f = parse (mainparser f) f s
 
 -- Parse from file
-maliceParseFile :: String -> IO (Either ParseError StatementList)
+maliceParseFile :: String -> IO (Either ParseError AST)
 maliceParseFile f = do
   s <- readFile f
   case maliceParser s f of
