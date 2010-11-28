@@ -55,7 +55,7 @@ p_arrayEl = do
 mainparser :: String -> Parser AST
 mainparser f = do
   p_white 
-  sl <- manyTill p_statement (try $ lookAhead $ p_cstring "The")
+  sl <- manyTill p_statement (try $ lookAhead ((p_cstring "The" >> return ()) <|> eof))
   ds <- manyTill p_declaration eof
   return (AST f empty sl ds)
 

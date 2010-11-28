@@ -73,11 +73,12 @@ type FunctionArgs = [(String, MaliceType)]
 
 data Identifier = Single String
                 | Array String Expr -- Name position
-                deriving (Eq)
-                         
+                deriving (Eq,Show)
+{-                         
 instance Show Identifier where
   show (Single s) = "variable " ++ show s
   show (Array s _) = "array " ++ show s
+-}
 
 data Expr
      = UnOp String Expr
