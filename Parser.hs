@@ -1,6 +1,6 @@
 module Parser
        (
-         maliceParser, maliceParseFile,
+         maliceParser, maliceParseFile
        ) where
 
 import Common
@@ -53,7 +53,11 @@ p_arrayEl = do
 
 -- Actual parser
 mainparser :: String -> Parser AST
-mainparser f = p_white >> liftM (AST f empty) (manyTill p_statement eof)
+mainparser f = do
+  p_white 
+  sl <- manyTill p_statement (try $ lookAhead $ p_cstring "The")
+  ds <- manyTill p_declaration eof
+  return (AST f empty sl ds)
 
 p_separator = try (p_string "too" >> p_separator')
               <|> p_separator'
@@ -75,10 +79,15 @@ p_statement = do
         <|> try (p_ifelse <* p_separator)
         <|> try (p_changercall <* p_separator)
         <|> try (liftM FunctionCall p_functioncall <* p_separator)
-        <|> try p_function
-        <|> p_changer
         <?> "statement")
   return ((sourceLine p, sourceColumn p), s)
+
+-- Declaration statement
+p_declaration = do
+  p <- getPosition
+  d <- (try p_function <|> p_changer)
+  return ((sourceLine p, sourceColumn p), d)
+
 
 p_return = p_cstring "Alice found" >> liftM Return p_expr
 
@@ -98,7 +107,7 @@ p_declarearray v = do
   p_string "had"
   size <- p_expr
   t <- p_type
-  return (DeclareArray v t size)
+  return (Declare (MaliceArraySize t size) v)
   
 p_assign v = p_string "became" >> liftM (Assign v) p_expr
 

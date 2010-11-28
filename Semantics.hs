@@ -32,78 +32,120 @@ instance Show SemError where
 -- the current position. Probably it's possible to have a cleaner
 -- Code using Applicative, but we did not have time to do that
 -- for milestone 2.
-type SemMonad = ErrorT SemError (State (SymbolTables, Scope, FileName, Position))
+type SemMonad = ErrorT SemError (State SemState)
+
+data SemState = SemState { fileName :: FileName
+                         , position :: Position
+                         , returnType :: MaliceType
+                         , symbolTable :: SymbolTable
+                         } deriving (Eq,Show)
 
 -- Helper function to throw errors
 throwSemError s = do
-  (_, _, fn, pos) <- get
-  throwError (SemError fn pos s)
+  state <- get
+  throwError (SemError (fileName state) (position state) s)
 
-getST = do
-  (sts, scope, _, _) <- get
-  return (sts M.! scope)
+getSem f = get >>= return . f
 
+getST = getSem symbolTable
 putST st = do
-  (sts, scope, fn, pos) <- get
-  put (M.insert scope st sts, scope, fn, pos)
+  (SemState fn pos t _) <- get
+  put (SemState fn pos t st)
+  
+getPos = getSem position
+putPos pos = do
+  (SemState fn _ t st) <- get
+  put (SemState fn pos t st)
 
-updatePos pos = do
-  (st, scope, fn, _) <- get
-  put (st, scope, fn, pos)
+getType = getSem returnType
+putType t = do
+  (SemState fn pos _ st) <- get
+  put (SemState fn pos t st)
   return st
+
+insertId (Single s) t st = M.insert s t st
+insertId (Array s _) t st = M.insert s t st
+
+lookupId (Single s) st = M.lookup s st
+lookupId (Array s _) st = M.lookup s st
+
+getId (Single s) st = st M.! s
+getId (Array s _) st = st M.! s
   
 -- The actual semantics analysis
-semantics (Ast fn st) = do
-  (st, scope, _, pos) <- get
-  put (st, scope, fn, pos)
-  semSL sl "_global"
-  (sts, _, _, _) <- get
-  return st
+semSL :: StatementList -> SemMonad AST
+semSL [] = return []
+semSL ((_, Return e) : _) = do
+  retT <- semExpr
+  t <- getType
+  if retT == t
+    then return []
+    else throwSemError ("The return type should be " ++ show t ++
+                        " but " ++ show retT ++ " is being returned.")
+semSL (s : sl) = do
+  s' <- semS s
+  semSL sl >>= return . (flip (:) $ s')
 
-semSL :: StatementListPos -> Scope -> SemMonad ()
-semSL 
-semSL [] = throwSemError "Missing return statement."
-semSL ((_, Return e) : _) = semExpr e >> return ()
-semSL (s : sl) = semS s >> semSL sl
-
-semS :: (SourcePos, Statement) -> SemMonad ()
-semS (pos, Assign v expr) = do
-  updatePos pos
-  checkDecl v (
+semS :: (Position, StatementAct) -> SemMonad Statement
+semS s@(pos, Assign id expr) = do
+  putPos pos
+  checkDecl id (
     \tVar -> do {
       tExpr <- semExpr expr;
-      unless (tExpr == tVar) $ throwSemError (
+      if (tExpr == tVar) then return s
+        else throwSemError (
         "Trying to assign a value of type \"" ++ show tExpr ++
-        "\" to variable \"" ++ v ++ "\" of type \"" ++ show tVar ++ "\".");
+        "\" to \"" ++ show id ++ "\" of type \"" ++ show tVar ++ "\".");
       })
-semS (pos, Declare t v) = do
-  st <- updatePos pos
-  case M.lookup v st of
-    Nothing -> putST (M.insert v t st)
-    _       -> throwSemError ("The variable \"" ++ v ++ "\" was already" ++
+semS s@(pos, Declare t id) = do
+  st <- putPos pos
+  case lookupId id st of
+    Nothing -> putST (insertId id t st) >> return s
+    _       -> throwSemError ("The \"" ++ show id ++ "\" was already" ++
                               " declared.")
-semS (pos, Decrease v) = do
-  updatePos pos
-  checkDecl v (
+semS s@(pos, Decrease id) = do
+  putPos pos
+  checkDecl id (
     \t -> case t of
-      MaliceInt -> return ()
+      MaliceInt -> return s
       _         -> throwSemError ("Trying to decrease var \"" ++ v ++
                                   " of type \"" ++ show t ++ "\"."))
-semS (pos, Increase v) = do
-  updatePos pos
+semS s@(pos, Increase v) = do
+  putPos pos
   checkDecl v (
     \t -> case t of
-      MaliceInt -> return ()
+      MaliceInt -> return s
       _         -> throwSemError ("Trying to increase var \"" ++ v ++
                                   " of type \"" ++ show t ++ "\"."))
 semS (_, Return _) = error "The function semS is to be called by semSL."
+semS s@(pos, Print e) = putPos pos >> semExpr e >> return s
+semS s@(pos, Get id) = putPos pos >> checkDecl id (return s)
+semS (pos, ProgramDoc _) = 
+  throwError "The program description must be at the beginning of the program."
+semS s@(pos, ChangerCall s id) = return s
+semS s@(pos, FunctionCall e) = return s
+semS (pos, Until _ e sl) = do
+  putPos pos
+  t <- semExpr e
+  case t of
+    MaliceInt -> do {
+      topST <- getSt;
+      putST M.empty;
+      st <- semSL sl;
+      putST topST
+      return (pos, Until st e sl);
+      }
+    _ -> throwSemError ("Conditional expressions must be of type \"number\".")
+semS (pos, Function _ name args t sl) = do  
+  putPos pos
+  topSt <- getST
 
-checkDecl :: String -> (MaliceType -> SemMonad a) -> SemMonad a
-checkDecl v f = do
+checkDecl :: Identifier -> (MaliceType -> SemMonad a) -> SemMonad a
+checkDecl id f = do
   st <- getST
-  case M.lookup v st of
-    Nothing  -> throwSemError ("Trying to assign a value to the var \"" ++
-                               v ++ "\" which has not been declared.")
+  case lookupId id st of
+    Nothing  -> throwSemError ("Trying to assign a value to the \"" ++
+                               show id ++ "\" which has not been declared.")
     (Just t) -> f t
 
 semExpr :: Expr -> SemMonad MaliceType
@@ -111,7 +153,7 @@ semExpr (Int _) = return MaliceInt
 semExpr (Char _) = return MaliceChar
 semExpr (Var v) = do 
   st <- getST
-  return (st M.! v)
+  return (getId v st)
 semExpr (UnOp op e) = do
   t <- semExpr e
   semOp op t

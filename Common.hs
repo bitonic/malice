@@ -5,6 +5,7 @@ module Common
          AST(..), StatementList,
          Statement, StatementAct(..),
          FunctionArgs, Identifier(..),
+         Declaration, DeclarationAct(..),
          Expr(..),
          stringToType,
          SymbolTable
@@ -21,12 +22,24 @@ data MaliceType = MaliceInt
                 | MaliceChar
                 | MaliceString
                 | MaliceArray MaliceType
-                deriving (Show, Eq)
+                | MaliceArraySize MaliceType Expr
+                | MaliceFunction FunctionArgs MaliceType
+                | MaliceChanger MaliceType
+                deriving (Show)
+                         
+instance Eq MaliceType where                      
+  (MaliceArray t) == (MaliceArraySize t' _) = t == t'
+  (MaliceArray t) == (MaliceArray t') = t == t'
+  (MaliceArraySize t s) == (MaliceArraySize t' s') = t == t' && s == s'
+  MaliceInt == MaliceInt = True
+  MaliceChar == MaliceChar = True
+  MaliceString == MaliceString = True
+  _ == _ = False
                         
 type Position = (Int, Int)
 
 type FileName = String
-data AST = AST FileName SymbolTable StatementList
+data AST = AST FileName SymbolTable StatementList [Declaration]
          deriving (Show, Eq)
 
 type StatementList = [Statement]
@@ -36,7 +49,6 @@ type Statement = (Position, StatementAct)
 data StatementAct
      = Assign Identifier Expr
      | Declare MaliceType String
-     | DeclareArray String MaliceType Expr
      | Decrease Identifier
      | Increase Identifier
      | Return Expr
@@ -48,15 +60,24 @@ data StatementAct
      -- Composite statements
      | Until SymbolTable Expr StatementList
      | IfElse [(SymbolTable, Expr, StatementList)]
-     | Function SymbolTable String FunctionArgs MaliceType StatementList
-     | Changer SymbolTable String MaliceType StatementList
      deriving (Show, Eq)
+
+type Declaration = (Position, DeclarationAct)
+
+data DeclarationAct
+     = Function SymbolTable String FunctionArgs MaliceType StatementList
+     | Changer SymbolTable String MaliceType StatementList
+     deriving (Eq, Show)
 
 type FunctionArgs = [(String, MaliceType)]
 
 data Identifier = Single String
                 | Array String Expr -- Name position
-                deriving (Show, Eq)
+                deriving (Eq)
+                         
+instance Show Identifier where
+  show (Single s) = "variable " ++ show s
+  show (Array s _) = "array " ++ show s
 
 data Expr
      = UnOp String Expr
