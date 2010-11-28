@@ -1,12 +1,11 @@
 module Parser
        (
          maliceParser, maliceParseFile,
-         MaliceType(..),
-         StatementList, Statement(..), Expr(..),
-         Position, AST(..)
        ) where
 
+import Common
 import Data.Int ( Int32 )
+import Data.Map ( empty )
 import Control.Monad ( liftM, liftM2 )
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr
@@ -14,60 +13,6 @@ import Text.ParserCombinators.Parsec.Token
 import Text.ParserCombinators.Parsec.Language
 import Text.ParserCombinators.Parsec.Pos ( sourceLine, sourceColumn )
 
--- Abstact Syntax Tree definition
--- The --Pos ones are used in the semantics, so that we
--- can have nice error messages.
-
-data MaliceType = MaliceInt
-                | MaliceChar
-                | MaliceString
-                | MaliceArray MaliceType
-                deriving (Show, Eq)
-                        
-type Position = (Int, Int)
-
-data AST = AST String StatementList
-         deriving (Show, Eq)
-
-type StatementList = [Statement]
-
-type Statement = (Position, StatementAct)
-
-data StatementAct
-     = Assign Identifier Expr
-     | Declare MaliceType String
-     | DeclareArray String MaliceType Expr
-     | Decrease Identifier
-     | Increase Identifier
-     | Return Expr
-     | Print Expr
-     | Get Identifier
-     | ProgramDoc String
-     | ChangerCall String Identifier
-     | FunctionCall Expr
-     -- Composite statements
-     | Until Expr StatementList
-     | IfElse [(Expr, StatementList)]
-     | Function String FunctionArgs MaliceType StatementList
-     | Changer String MaliceType StatementList
-     deriving (Show, Eq)
-
-type FunctionArgs = [(String, MaliceType)]
-
-data Identifier = Single String
-                | Array String Expr -- Name position
-                deriving (Show, Eq)
-
-data Expr
-     = UnOp String Expr
-     | BinOp String Expr Expr
-     | FunctionOp String [Expr]
-     | Int Int32
-     | Char Char
-     | String String
-     | Id Identifier
-     deriving (Show, Eq)
-              
 -- Language characteristics
 
 operators = ["+", "-", "*", "/", "%", "^", "&", "|", "~",
@@ -108,7 +53,7 @@ p_arrayEl = do
 
 -- Actual parser
 mainparser :: String -> Parser AST
-mainparser f = p_white >> liftM (AST f) (manyTill p_statement eof)
+mainparser f = p_white >> liftM (AST f empty) (manyTill p_statement eof)
 
 p_separator = try (p_string "too" >> p_separator')
               <|> p_separator'
@@ -170,7 +115,7 @@ p_until = do
   p_string "eventually"
   e <- p_parens p_expr
   p_string "because"
-  liftM (Until e) $ manyTill p_statement $ try (p_cstring "enough times")
+  liftM (Until empty e) $ manyTill p_statement $ try (p_cstring "enough times")
 
 p_ifelse = do 
   (p_string "perhaps" <|> p_string "either")
@@ -182,11 +127,11 @@ p_ifelse = do
     <|> end)
   finalOr <- optionMaybe (manyTill p_statement (try end))
   case finalOr of
-    Just s' -> return $ IfElse $ [(e, s)] ++ rest ++ [(Int 1, s')]
-    Nothing -> return $ IfElse $ (e, s) : rest
+    Just s' -> return $ IfElse $ [(empty, e, s)] ++ rest ++ [(empty, Int 1, s')]
+    Nothing -> return $ IfElse $ (empty, e, s) : rest
   where
     elseifs =
-      liftM2 (,) (p_cstring "or maybe" >> (p_expr <* p_string "so")) (many p_statement)
+      liftM2 ((,,) empty) (p_cstring "or maybe" >> (p_expr <* p_string "so")) (many p_statement)
     end = p_cstring "Alice was unsure" >> optional (p_string "which")
 
 p_function = do
@@ -197,7 +142,7 @@ p_function = do
   p_cstring "contained a"
   ret <- p_type
   sl <- manyTill p_statement p_nextfunction
-  return $ Function name args ret sl
+  return $ Function empty name args ret sl
   where
     arrarg = liftM2 (,) p_varName p_type
     vararg = liftM2 (flip (,)) p_type p_varName
@@ -209,7 +154,7 @@ p_changer = do
   name <- p_varName
   p_cstring "changed a"
   t <- p_type
-  liftM (Changer name t) $ manyTill p_statement p_nextfunction
+  liftM (Changer empty name t) $ manyTill p_statement p_nextfunction
   
 p_nextfunction =
   eof
@@ -276,10 +221,6 @@ p_string = p_lexeme . string
 p_cstring = mapM p_string . words
 
 p <* q = p >>= (\x -> q >> return x)
-
-stringToType "number" = MaliceInt
-stringToType "letter" = MaliceChar
-stringToType "sentence" = MaliceString
 
 -- useful for debugging when you don't want the positions
 showSL :: StatementList -> String

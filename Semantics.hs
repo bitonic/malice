@@ -1,11 +1,11 @@
 module Semantics
        (
          maliceSemantics,
-         VarTypes
+         SymbolTables
        )
        where
 
-import Parser
+import Common
 import Data.Map ( Map )
 import qualified Data.Map as M
 import Control.Monad.Error
@@ -15,40 +15,53 @@ import Control.Monad.State
 opTypes MaliceInt = ["+", "-", "*", "/", "%", "^", "&", "|", "~"]
 opTypes MaliceChar = []
 
--- The symboltable
-type VarTypes = Map String MaliceType
-
 -- The error type. SourcePos comes from Text.Parsec
 type Message = String
-data SemError = SemError !SourcePos Message
+data SemError = SemError FileName Position Message
 
 instance Error SemError where
-  noMsg  = SemError (newPos "(unknown)" 0 0) "Unknown error."
-  strMsg = SemError (newPos "(unknown)" 0 0)
+  noMsg  = SemError (0, 0) "Unknown error."
+  strMsg = SemError (0, 0)
 
 instance Show SemError where
-  show (SemError pos mess) =
-    show pos ++ "\n" ++ mess ++ "\n"
+  show (SemError fn pos mess) =
+    show fn ++ pos ++ "\n" ++ mess ++ "\n"
 
 -- The monad, derived from the error monad transformer.
 -- The inner monad is a state with the current symbol table and
 -- the current position. Probably it's possible to have a cleaner
 -- Code using Applicative, but we did not have time to do that
 -- for milestone 2.
-type SemMonad = ErrorT SemError (State (VarTypes, SourcePos))
+type SemMonad = ErrorT SemError (State (SymbolTables, Scope, FileName, Position))
 
 -- Helper function to throw errors
 throwSemError s = do
-  (_, pos) <- get
-  throwError (SemError pos s)
+  (_, _, fn, pos) <- get
+  throwError (SemError fn pos s)
 
+getST = do
+  (sts, scope, _, _) <- get
+  return (sts M.! scope)
+
+putST st = do
+  (sts, scope, fn, pos) <- get
+  put (M.insert scope st sts, scope, fn, pos)
+
+updatePos pos = do
+  (st, scope, fn, _) <- get
+  put (st, scope, fn, pos)
+  return st
+  
 -- The actual semantics analysis
-semantics sl = do
-  semSL sl
-  (st, _) <- get
+semantics (Ast fn st) = do
+  (st, scope, _, pos) <- get
+  put (st, scope, fn, pos)
+  semSL sl "_global"
+  (sts, _, _, _) <- get
   return st
 
-semSL :: StatementListPos -> SemMonad ()
+semSL :: StatementListPos -> Scope -> SemMonad ()
+semSL 
 semSL [] = throwSemError "Missing return statement."
 semSL ((_, Return e) : _) = semExpr e >> return ()
 semSL (s : sl) = semS s >> semSL sl
@@ -66,7 +79,7 @@ semS (pos, Assign v expr) = do
 semS (pos, Declare t v) = do
   st <- updatePos pos
   case M.lookup v st of
-    Nothing -> put (M.insert v t st, pos)
+    Nothing -> putST (M.insert v t st)
     _       -> throwSemError ("The variable \"" ++ v ++ "\" was already" ++
                               " declared.")
 semS (pos, Decrease v) = do
@@ -87,23 +100,17 @@ semS (_, Return _) = error "The function semS is to be called by semSL."
 
 checkDecl :: String -> (MaliceType -> SemMonad a) -> SemMonad a
 checkDecl v f = do
-  (st, _) <- get
+  st <- getST
   case M.lookup v st of
     Nothing  -> throwSemError ("Trying to assign a value to the var \"" ++
                                v ++ "\" which has not been declared.")
     (Just t) -> f t
 
-updatePos :: SourcePos -> SemMonad VarTypes 
-updatePos pos = do
-  (st, _) <- get
-  put (st, pos)
-  return st
-                                
 semExpr :: Expr -> SemMonad MaliceType
 semExpr (Int _) = return MaliceInt
 semExpr (Char _) = return MaliceChar
 semExpr (Var v) = do 
-  (st, _) <- get
+  st <- getST
   return (st M.! v)
 semExpr (UnOp op e) = do
   t <- semExpr e
@@ -127,6 +134,6 @@ semOp op t
                    show t ++ " types.")
       
 -- Semantics analysis from the ast with positions.
-maliceSemantics :: StatementListPos -> Either SemError VarTypes
+maliceSemantics :: StatementListPos -> Either SemError SymbolTable
 maliceSemantics sl
   = evalState (runErrorT $ semantics sl) (M.empty, newPos "(unknown)" 0 0)
