@@ -1,9 +1,8 @@
 module Main where
 
 import System ( getArgs )
-import CodeGen
-import Semantics
 import Parser
+import TypeCheck
 
 main :: IO Int
 main = do
@@ -11,6 +10,7 @@ main = do
   f <- readFile fi
   case maliceParser f fi of
     Left e   -> putStr ("Parse error:\n" ++ show e) >> error "Aborting."
-    Right sl -> case maliceSemantics sl of
-      Left e   -> putStr ("Semantics error:\n" ++ show e) >> error "Aborting."
-      Right st -> writeFile (fo ++ ".asm") (maliceCodeGen (unPosSL sl) st) >> return 0
+    Right ast' -> case maliceTypeCheck ast' of
+      Left tce -> putStr ("Type checking error:\n" ++ show tce) >> error "Aborting."
+      Right ast -> putStrLn (show ast) >> return 0
+

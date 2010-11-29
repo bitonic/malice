@@ -5,7 +5,7 @@ module OptimExpr
 --         evalBinOp,
        ) where
 
-import Parser
+import Common
 import Data.Int (Int32)
 import Data.Bits
 
@@ -24,7 +24,7 @@ exprIntermeds (Int _)
   = 0
 exprIntermeds (Char _)
   = 0
-exprIntermeds (Var _)
+exprIntermeds (Id _)
   = 0
 
 flipBinOpArgs :: Expr -> Expr
@@ -46,12 +46,12 @@ sortExprWeight exp1
 
 -- Evaluate complex expressions first, then variables and finally immediates
 sortExprType :: Expr -> Expr
-sortExprType (BinOp op (Int i) (Var v))
-  = flipBinOpArgs $ BinOp op (sortExprType (Var v)) (sortExprType (Int i))
+sortExprType (BinOp op (Int i) (Id v))
+  = flipBinOpArgs $ BinOp op (sortExprType (Id v)) (sortExprType (Int i))
 sortExprType (BinOp op (Int i) exp2)
   = flipBinOpArgs $ BinOp op (sortExprType (Int i)) (sortExprType exp2)
-sortExprType (BinOp op (Var v) exp2)
-  = flipBinOpArgs $ BinOp op (sortExprType (Var v)) (sortExprType exp2)
+sortExprType (BinOp op (Id v) exp2)
+  = flipBinOpArgs $ BinOp op (sortExprType (Id v)) (sortExprType exp2)
 sortExprType exp1
   = exp1
 

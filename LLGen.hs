@@ -4,7 +4,7 @@ module LLGen
          maliceLL,
        ) where
 
-import Parser
+import Common
 import OptimExpr
 import Data.Int (Int32)
 import Data.Bits
@@ -107,7 +107,7 @@ llExp (Int i) destreg
   = [LLCp (PReg destreg) (PImm i)]
 llExp (Char c) destreg
   = [LLCp (PReg destreg) (PImm (truncates32tou8 $ fromIntegral (ord c) :: Immediate))]
-llExp (Var var) destreg
+llExp (Id (SingleElement var)) destreg
   = [LLCp (PReg destreg) (PVar var)]
 
 
@@ -136,24 +136,30 @@ llExp (Var var) destreg
 -}
 
 
-llS :: Statement -> Register -> [LLcmd]
+llS :: StatementAct -> Register -> [LLcmd]
 llS (Declare _ _) _
   = []
-llS (Assign var (Int imm)) _
+llS (Assign (SingleElement var) (Int imm)) _
   = [LLCp (PVar var) (PImm imm)]
-llS (Assign var exp1) destreg
+llS (Assign (SingleElement var) exp1) destreg
   = (llExp (optimiseExpr exp1) destreg) ++ [(LLCp (PVar var) (PReg destreg))]
-llS (Decrease var) destreg
+llS (Decrease (SingleElement var)) destreg
   = [(LLCp (PReg destreg) (PVar var)), (LLDec (PReg destreg)), (LLCp (PVar var) (PReg destreg))]
-llS (Increase var) destreg
+llS (Increase (SingleElement var)) destreg
   = [(LLCp (PReg destreg) (PVar var)), (LLInc (PReg destreg)), (LLCp (PVar var) (PReg destreg))]
 llS (Return exp1) destreg
   = (llExp (optimiseExpr exp1) destreg) ++ [LLRet]
 
 
+llSA :: Statement -> Register -> [LLcmd]
+llSA s destreg
+  = llS sa destreg
+  where
+    (_, sa) = s
+
 llSL :: StatementList -> Register -> [LLcmd]
 llSL ss destreg
-  = concat $ map (flip llS destreg) ss
+  = concat $ map (flip llSA destreg) ss
 
 
 maliceLL :: StatementList -> [LLcmd]

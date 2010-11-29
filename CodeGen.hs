@@ -3,9 +3,9 @@ module CodeGen
          maliceCodeGen,
        ) where
 
+import Common
 import LLGen
 import Parser
-import Semantics
 import qualified Data.Map as M
 
 --maxreg :: Register
