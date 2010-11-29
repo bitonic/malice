@@ -68,7 +68,7 @@ data StatementAct
 
 type DeclarationList = [Declaration]
 
-showDL = map show
+showDL dl = map show dl
 
 type DeclarationMap = Map String DeclarationAct
 
