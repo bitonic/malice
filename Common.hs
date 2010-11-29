@@ -23,8 +23,6 @@ data MaliceType = MaliceInt
                 | MaliceString
                 | MaliceArray MaliceType
                 | MaliceArraySize MaliceType Expr
-                | MaliceFunction FunctionArgs MaliceType
-                | MaliceChanger MaliceType
                 deriving (Show)
                          
 instance Eq MaliceType where                      
@@ -40,8 +38,13 @@ type Position = (Int, Int)
 
 type FileName = String
 data AST = AST FileName DeclarationList
-         deriving (Show, Eq)
+         deriving (Eq)
                   
+instance Show AST where
+  show (AST fn dl) =
+    "File " ++ fn ++ ":\n\n" ++
+    show dl
+
 mainFunction = "_main"
 
 type StatementList = [Statement]
@@ -56,7 +59,7 @@ data StatementAct
      | Return Expr
      | Print Expr
      | Get Identifier
-     | ProgramDoc String
+     | Comment String
      | FunctionCallS Expr
      -- Composite statements
      | Until SymbolTable Expr StatementList
@@ -65,19 +68,23 @@ data StatementAct
 
 type DeclarationList = [Declaration]
 
+showDL dl = map show dl
+
 type DeclarationMap = Map String DeclarationAct
 
 type Declaration = (Position, DeclarationAct)
 
 data DeclarationAct
+     -- Symbol table, function name, arguments, return type, body
      = Function SymbolTable String FunctionArgs MaliceType StatementList
      deriving (Eq, Show)
 
 type FunctionArgs = [(String, MaliceType)]
 
-data Identifier = Single String
-                | Array String Expr -- Name position
+data Identifier = SingleElement String -- String = name of the variable
+                | ArrayElement String Expr -- Name position
                 deriving (Eq,Show)
+
 {-                         
 instance Show Identifier where
   show (Single s) = "variable " ++ show s

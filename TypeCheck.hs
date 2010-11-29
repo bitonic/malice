@@ -70,13 +70,13 @@ lookupSymbol v = do
       Nothing -> look sts
       Just t  -> Just t
 
-getIdentifier (Single v) = do 
+getIdentifier (SingleElement v) = do 
   declared <- lookupSymbol v
   case declared of
     Nothing -> throwTypeError ("The variable " ++ v ++ " has not been declared.")
     Just t  -> return t
-getIdentifier (Array v _) = do
-  arr <- getIdentifier (Single v)
+getIdentifier (ArrayElement v _) = do
+  arr <- getIdentifier (SingleElement v)
   case arr of
     MaliceArraySize t _ -> return t
     MaliceArray t       -> return t
@@ -131,7 +131,7 @@ sAct s@(Decrease id) = getIdentifier id >> return s
 sAct s@(Increase id) = getIdentifier id >> return s
 sAct s@(Print _) = return s
 sAct s@(Get _) = return s
-sAct s@(ProgramDoc _) = return s
+sAct s@(Comment _) = return s
 sAct s@(FunctionCallS e) = expr e >> return s
 sAct (Until _ e sl) = do
   (st, sl') <- conditional e sl

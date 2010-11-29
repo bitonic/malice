@@ -18,7 +18,6 @@ import Text.ParserCombinators.Parsec.Pos ( sourceLine, sourceColumn )
 operators = ["+", "-", "*", "/", "%", "^", "&", "|", "~",
              "==", "<", ">", ">=", "<=", "&&", "||", "!="
             ]
- 
 
 def = emptyDef { identStart = letter
                , identLetter = alphaNum <|> char '_'
@@ -42,14 +41,14 @@ TokenParser { identifier = p_varName
             } = makeTokenParser def
 
 p_identifier = try p_arrayEl
-               <|> liftM Single p_varName
+               <|> liftM SingleElement p_varName
                <?> "identifier"
 p_arrayEl = do
   id <- p_varName
   p_string "'s"
   pos <- p_expr
   p_string "piece"
-  return (Array id pos)
+  return (ArrayElement id pos)
 
 -- Actual parser
 mainparser :: String -> Parser AST
@@ -74,7 +73,7 @@ p_statement = do
         <|> try ((p_identifier >>= p_assign) <* p_separator)
         <|> try (p_print <* p_separator)
         <|> try (p_get <* p_separator)
-        <|> try (p_programdoc <* p_separator)
+        <|> try (p_comment <* p_separator)
         <|> try (p_until <* p_separator)
         <|> try (p_ifelse <* p_separator)
         <|> try (p_changercall <* p_separator)
@@ -87,7 +86,6 @@ p_declaration = do
   p <- getPosition
   d <- (try p_function <|> p_changer)
   return ((sourceLine p, sourceColumn p), d)
-
 
 p_return = p_cstring "Alice found" >> liftM Return p_expr
 
@@ -117,7 +115,7 @@ p_print = liftM Print (p_expr <*
 
 p_get = p_cstring "what was" >> liftM Get p_identifier
 
-p_programdoc = liftM ProgramDoc (p_quotedstring <* p_cstring "thought Alice")
+p_comment = liftM Comment (p_quotedstring <* p_cstring "thought Alice")
           
 -- Composite statements
 p_until = do
@@ -161,7 +159,7 @@ p_changer = do
   t <- p_type
   sl <- manyTill (lookAhead (notFollowedBy (p_return >> return 'x')) >> p_statement) p_nextfunction
   return $ Function empty name [("it", t)] t (sl ++
-                                              [((0,0), Return (Id (Single "it")))])
+                                              [((0,0), Return (Id (SingleElement "it")))])
   
 p_nextfunction =
   eof
