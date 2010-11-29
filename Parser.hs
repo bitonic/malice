@@ -147,15 +147,11 @@ p_function = do
   p_white
   p_cstring "The room"
   name <- p_varName
-  args <-  p_parens $ sepBy args (p_string ",")
+  args <-  p_parens $ sepBy (liftM2 (flip (,)) p_type p_varName) (p_string ",")
   p_cstring "contained a"
   ret <- p_type
   sl <- manyTill p_statement p_nextfunction
   return $ Function empty name args ret sl
-  where
-    arrarg = liftM2 (,) p_varName p_type
-    vararg = liftM2 (flip (,)) p_type p_varName
-    args = try arrarg <|> vararg 
 
 p_changer = do
   p_white
@@ -179,7 +175,7 @@ p_changercall = do
   return (Assign id (FunctionCall function [(Id id)]))
 
 p_type =
-  try (liftM MaliceArray (p_type' <* p_string "arr"))
+  try (liftM MaliceArray (p_string "spider" >> p_type'))
   <|> (p_type' >>= return)
   where
     p_type' = liftM stringToType (p_string "number"

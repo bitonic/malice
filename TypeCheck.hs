@@ -55,6 +55,11 @@ putPos pos = do
   (TypeState fn _ st dm) <- get
   put (TypeState fn pos st dm)
 
+getDM = getSem declarationMap
+putDM dm = do
+  (TypeState fn pos sts _) <- get
+  put (TypeState fn pos sts dm)
+
 -- Methods to get and put stuff
 lookupSymbol v = do
   sts <- getSem symbolTables
@@ -87,9 +92,9 @@ astTypeCheck (AST fn dl)= do
 declMap :: DeclarationList -> TypeMonad ()
 declMap [] = return ()
 declMap ((_, d) : dl) = do
-  (TypeState fn pos sts dm) <- get
+  dm <- getDM
   case M.lookup (declName d) dm of
-    Nothing -> put (TypeState fn pos sts (M.insert (declName d) d dm)) >> declMap dl
+    Nothing -> putDM (M.insert (declName d) d dm) >> declMap dl
     _       -> throwTypeError ("Trying to declare already declared function " ++
                                declName d ++ ".")
 
@@ -103,36 +108,6 @@ dAct f@(Function _ name args t sl) = do
   st <- popST
   return (Function st name args t sl)
 
-{-
-  if name == mainFunction
-    then dActMain (Function st name args t sl')
-    else dActNormal (Function st name args t sl')
-
-dActMain (Function st name args t sl) =
-  case last sl of
-    (_, Return e) -> do {
-      t' <- expr e;
-      if t == t'
-        then return (Function st mainFunction args t sl)
-        else throwTypeError ("Trying to return type " ++ show t' ++
-                             " in the main body of the program, " ++
-                             "which has to return " ++ show t ++ ".");
-      }
-    _ -> return (Function st mainFunction args t (sl ++ [((0,0), Return (Int 0))]))
-
-dActNormal (Function st name args t sl) =
-  case last sl of
-    (_, Return e) -> do {
-      t' <- expr e;
-      if t == t'
-        then return (Function st name args t sl)
-        else throwTypeError ("Trying to return type " ++ show t' ++
-                             " in function " ++ name ++ " of type " ++
-                             show t ++ ".");
-      }
-    _ -> throwTypeError ("Missing return statement in function " ++ name ++ ".")
-
--}
 -- Statements checker
 statementList :: StatementList -> TypeMonad StatementList
 statementList [] = return []
@@ -150,14 +125,14 @@ sAct s@(Assign id e) = getIdentifier id >> expr e >> return s
 sAct s@(Declare t v) = do
   declared <- lookupSymbol v
   case declared of
-    Nothing -> (getST >>= (\st -> putST (M.insert v t st))) >> return s
+    Nothing -> (getST >>= (putST . (M.insert v t))) >> return s
     _       -> throwTypeError ("Trying to redeclare variable " ++ v ++ ".")
 sAct s@(Decrease id) = getIdentifier id >> return s
 sAct s@(Increase id) = getIdentifier id >> return s
 sAct s@(Print _) = return s
 sAct s@(Get _) = return s
 sAct s@(ProgramDoc _) = return s
-sAct s@(FunctionCallS _) = return s
+sAct s@(FunctionCallS e) = expr e >> return s
 sAct (Until _ e sl) = do
   (st, sl') <- conditional e sl
   return (Until st e sl')
@@ -194,7 +169,25 @@ expr (BinOp op e1 e2) = do
     else throwTypeError ("Trying to apply operator " ++ op ++ " with arguments" ++
                          " of different types " ++ show t1 ++ " and " ++ show t2 ++
                          ".")
-expr (FunctionCall f args) = return MaliceInt
+expr (FunctionCall f args) = do
+  dm <- getDM
+  case M.lookup f dm of
+    Just fun -> checkFun fun
+    Nothing  -> throwTypeError ("Trying to call undeclared function " ++ f ++ ".")
+  where
+    checkFun (Function _ _ argsF t _) =
+      if length args == length argsF 
+        then do {
+          argsT <- mapM expr args;
+          if and (zipWith (\(_, t1) t2 -> t1 == t2) argsF argsT) then
+            return t
+          else
+            throwTypeError ("Invalid types for the arguments of function " ++ f ++ ".");
+          }
+        else throwTypeError ("Invalid number of arguments for function " ++ f ++
+                             ", " ++ show (length args) ++ " instead of " ++
+                             show (length argsF) ++ ".")
+          
   
 -- Operators and types
 opTypes MaliceInt _ = return MaliceInt
