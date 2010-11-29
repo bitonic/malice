@@ -1,5 +1,9 @@
+m was a number.
+m became 1.
 perhaps (m == 0) so
   Alice found 1.
 or
-  Alice found n * fact(n-1).
+  n was a number.
+  n became 3.
+  Alice found n + 3.
 Alice was unsure.

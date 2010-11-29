@@ -27,48 +27,57 @@ type TypeMonad = ErrorT TypeError (State TypeState)
 data TypeState = TypeState { fileName :: FileName
                            , position :: Position
                            , returnType :: MaliceType
-                           , symbolTable :: SymbolTable
+                           , symbolTables :: [SymbolTable]
                            } deriving (Eq,Show)
 
 throwTypeError s = do
   state <- get
   throwError (TypeError (fileName state) (position state) s)
 
+condExprErr = "Conditional expressions must be of type" ++ (show MaliceInt)
+
 -- "Low level" methods on the state
 getSem :: (TypeState -> a) -> TypeMonad a
 getSem f = get >>= return . f
-  
-getST :: TypeMonad SymbolTable
-getST = getSem symbolTable
-putST :: SymbolTable -> TypeMonad ()
+
+
+getST = getSem symbolTables >>= return . head
 putST st = do
-  (TypeState fn pos t _) <- lift get
-  put (TypeState fn pos t st)
-  
-getPos :: TypeMonad Position
+  (TypeState fn pos t (_ : sts)) <-  get
+  put (TypeState fn pos t (st : sts))
+popST = do
+  (TypeState fn pos t (st : sts)) <- get
+  put (TypeState fn pos t sts)
+  return st
+pushST st = do
+  (TypeState fn pos t sts) <- get
+  put (TypeState fn pos t (st : sts))
+ 
+
 getPos = getSem position
-putPos :: Position -> TypeMonad ()
 putPos pos = do
   (TypeState fn _ t st) <- get
   put (TypeState fn pos t st)
 
-getType :: TypeMonad MaliceType
+
 getType = getSem returnType
-putType :: MaliceType -> TypeMonad SymbolTable
 putType t = do
   (TypeState fn pos _ st) <- get
   put (TypeState fn pos t st)
   return st
 
 -- Methods to get and put stuff
-getSymbol :: String -> TypeMonad MaliceType
 getSymbol v = do
-  st <- getSem symbolTable
-  case M.lookup v st of
+  sts <- getSem symbolTables
+  case look sts of
     Nothing -> throwTypeError ("The variable " ++ v ++ " has not been declared.")
     Just t  -> return t
+  where
+    look [] = Nothing 
+    look (st : sts) = case M.lookup v st of
+      Nothing -> look sts
+      Just t  -> Just t
 
-getIdentifier :: Identifier -> TypeMonad MaliceType
 getIdentifier (Single v) = getSymbol v
 getIdentifier (Array v _) = do
   arr <- getSymbol v
@@ -98,6 +107,7 @@ statementList (s : sl) = do
 statement :: Statement -> TypeMonad Statement
 statement (pos, sact) = putPos pos >> (sAct sact >>= return . ((,) pos))
 
+sAct :: StatementAct -> TypeMonad StatementAct
 sAct s@(Assign id e) = getIdentifier id >> expr e >> return s
 sAct s@(Declare t v) = do
   st <- getST
@@ -117,6 +127,14 @@ sAct s@(Print _) = return s
 sAct s@(Get _) = return s
 sAct s@(ProgramDoc _) = throwTypeError ("Program description only allowed at" ++
                                         " the beginning of the program.")  
+sAct (Until _ e sl) = do
+  t <- expr e
+  if t == MaliceInt
+    then do {pushST M.empty;
+             sl' <- statementList sl;
+             st <- popST;
+             return (Until st e sl');}
+    else throwTypeError condExprErr
 
 -- Expression checker
 expr :: Expr -> TypeMonad MaliceType
@@ -144,4 +162,4 @@ opTypes t op = throwTypeError ("The operator " ++ op ++ " can not be used with "
 
 runSL :: StatementList -> Either TypeError StatementList
 runSL sl
-  = evalState (runErrorT $ statementList sl) (TypeState "" (0,0) MaliceInt M.empty)
+  = evalState (runErrorT $ statementList sl) (TypeState "" (0,0) MaliceInt [M.empty])
