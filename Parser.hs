@@ -99,7 +99,7 @@ p_incdec v = choice [ p_string "ate" >> return (Increase v)
 
 p_declare v = do
   p_cstring "was a"
-  liftM ((flip Declare) v) p_type
+  liftM (flip Declare v) p_type
 
 p_declarearray v = do
   p_string "had"
@@ -170,11 +170,11 @@ p_changercall = do
   id <- p_identifier
   p_cstring "went through"
   function <- p_varName
-  return (Assign id (FunctionCall function [(Id id)]))
+  return (Assign id (FunctionCall function [Id id]))
 
 p_type =
   try (liftM MaliceArray (p_string "spider" >> p_type'))
-  <|> (p_type' >>= return)
+  <|> p_type'
   where
     p_type' = liftM stringToType (p_string "number"
                                   <|> p_string "letter"

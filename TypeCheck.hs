@@ -36,9 +36,9 @@ throwTypeError s = do
 
 -- "Low level" methods on the state
 getSem :: (TypeState -> a) -> TypeMonad a
-getSem f = get >>= return . f
+getSem f = fmap f get
 
-getST = getSem symbolTables >>= return . head
+getST = fmap head (getSem symbolTables)
 putST st = do
   (TypeState fn pos (_ : sts) dm) <-  get
   put (TypeState fn pos (st : sts) dm)
@@ -99,7 +99,7 @@ declMap ((_, d) : dl) = do
                                declName d ++ ".")
 
 declaration :: Declaration -> TypeMonad Declaration
-declaration (pos, d) = dAct d >>= return . ((,) pos)
+declaration (pos, d) = dAct d >>= return . (,) pos
   
 dAct :: DeclarationAct -> TypeMonad DeclarationAct
 dAct f@(Function _ name args t sl) = do
@@ -118,14 +118,14 @@ statementList (s : sl) = do
   return (s' : sl')
 
 statement :: Statement -> TypeMonad Statement
-statement (pos, sact) = putPos pos >> (sAct sact >>= return . ((,) pos))
+statement (pos, sact) = putPos pos >> fmap ((,) pos) (sAct sact)
 
 sAct :: StatementAct -> TypeMonad StatementAct
 sAct s@(Assign id e) = getIdentifier id >> expr e >> return s
 sAct s@(Declare t v) = do
   declared <- lookupSymbol v
   case declared of
-    Nothing -> (getST >>= (putST . (M.insert v t))) >> return s
+    Nothing -> (getST >>= (putST . M.insert v t)) >> return s
     _       -> throwTypeError ("Trying to redeclare variable " ++ v ++ ".")
 sAct s@(Decrease id) = getIdentifier id >> return s
 sAct s@(Increase id) = getIdentifier id >> return s
@@ -136,8 +136,7 @@ sAct s@(FunctionCallS e) = expr e >> return s
 sAct (Until _ e sl) = do
   (st, sl') <- conditional e sl
   return (Until st e sl')
-sAct (IfElse blocks) = do
-  liftM (IfElse) (mapM block blocks)
+sAct (IfElse blocks) = liftM IfElse (mapM block blocks)
   where
     block (_, e, sl) = do
       (st, sl') <- conditional e sl
@@ -150,14 +149,14 @@ conditional e sl = do
               sl' <- statementList sl;
               st <- popST;
               return (st, sl');}
-    else throwTypeError ("Conditional expressions must be of type" ++ (show MaliceInt))
+    else throwTypeError ("Conditional expressions must be of type" ++ show MaliceInt)
 
 -- Expression checker
 expr :: Expr -> TypeMonad MaliceType
 expr (Int _) = return MaliceInt
 expr (Char _) = return MaliceChar
 expr (String _) = return MaliceString
-expr (Id id) = getIdentifier id >>= return
+expr (Id id) = getIdentifier id
 expr (UnOp op e) = do
   t <- expr e
   opTypes t op
