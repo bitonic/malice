@@ -26,8 +26,8 @@ type TypeMonad = ErrorT TypeError (State TypeState)
 
 data TypeState = TypeState { fileName :: FileName
                            , position :: Position
-                           , returnType :: MaliceType
                            , symbolTables :: [SymbolTable]
+                           , declarationMap :: DeclarationMap
                            } deriving (Eq,Show)
 
 throwTypeError s = do
@@ -40,26 +40,20 @@ getSem f = get >>= return . f
 
 getST = getSem symbolTables >>= return . head
 putST st = do
-  (TypeState fn pos t (_ : sts)) <-  get
-  put (TypeState fn pos t (st : sts))
+  (TypeState fn pos (_ : sts) dm) <-  get
+  put (TypeState fn pos (st : sts) dm)
 popST = do
-  (TypeState fn pos t (st : sts)) <- get
-  put (TypeState fn pos t sts)
+  (TypeState fn pos (st : sts) dm) <- get
+  put (TypeState fn pos sts dm)
   return st
 pushST st = do
-  (TypeState fn pos t sts) <- get
-  put (TypeState fn pos t (st : sts))
+  (TypeState fn pos sts dm) <- get
+  put (TypeState fn pos (st : sts) dm)
 
 getPos = getSem position
 putPos pos = do
-  (TypeState fn _ t st) <- get
-  put (TypeState fn pos t st)
-
-getType = getSem returnType
-putType t = do
-  (TypeState fn pos _ st) <- get
-  put (TypeState fn pos t st)
-  return st
+  (TypeState fn _ st dm) <- get
+  put (TypeState fn pos st dm)
 
 -- Methods to get and put stuff
 lookupSymbol v = do
@@ -71,29 +65,82 @@ lookupSymbol v = do
       Nothing -> look sts
       Just t  -> Just t
 
-getSymbol v = do
+getIdentifier (Single v) = do 
   declared <- lookupSymbol v
   case declared of
     Nothing -> throwTypeError ("The variable " ++ v ++ " has not been declared.")
     Just t  -> return t
-
-getIdentifier (Single v) = getSymbol v
 getIdentifier (Array v _) = do
-  arr <- getSymbol v
+  arr <- getIdentifier (Single v)
   case arr of
     MaliceArraySize t _ -> return t
     MaliceArray t       -> return t
 
 -- The mighty AST checker.
 astTypeCheck :: AST -> TypeMonad AST
-astTypeCheck (AST fn _ sl ds) = do
-  sl' <- statementList sl
-  [st] <- getSem symbolTables
-  return (AST fn st sl' ds)
+astTypeCheck (AST fn dl)= do
+  declMap dl
+  dl' <- mapM declaration dl
+  return (AST fn dl')
   
+-- Declarations
+declMap :: DeclarationList -> TypeMonad ()
+declMap [] = return ()
+declMap ((_, d) : dl) = do
+  (TypeState fn pos sts dm) <- get
+  case M.lookup (declName d) dm of
+    Nothing -> put (TypeState fn pos sts (M.insert (declName d) d dm)) >> declMap dl
+    _       -> throwTypeError ("Trying to declare already declared function " ++
+                               declName d ++ ".")
+
+declaration :: Declaration -> TypeMonad Declaration
+declaration (pos, d) = dAct d >>= return . ((,) pos)
+  
+dAct :: DeclarationAct -> TypeMonad DeclarationAct
+dAct f@(Function _ name args t sl) = do
+  pushST (M.fromList args)
+  sl' <- statementList sl
+  st <- popST
+  return (Function st name args t sl)
+
+{-
+  if name == mainFunction
+    then dActMain (Function st name args t sl')
+    else dActNormal (Function st name args t sl')
+
+dActMain (Function st name args t sl) =
+  case last sl of
+    (_, Return e) -> do {
+      t' <- expr e;
+      if t == t'
+        then return (Function st mainFunction args t sl)
+        else throwTypeError ("Trying to return type " ++ show t' ++
+                             " in the main body of the program, " ++
+                             "which has to return " ++ show t ++ ".");
+      }
+    _ -> return (Function st mainFunction args t (sl ++ [((0,0), Return (Int 0))]))
+
+dActNormal (Function st name args t sl) =
+  case last sl of
+    (_, Return e) -> do {
+      t' <- expr e;
+      if t == t'
+        then return (Function st name args t sl)
+        else throwTypeError ("Trying to return type " ++ show t' ++
+                             " in function " ++ name ++ " of type " ++
+                             show t ++ ".");
+      }
+    _ -> throwTypeError ("Missing return statement in function " ++ name ++ ".")
+
+-}
 -- Statements checker
 statementList :: StatementList -> TypeMonad StatementList
-statementList = mapM statement
+statementList [] = return []
+statementList ((pos, Return e) : sl) = expr e >> return [(pos, Return e)]
+statementList (s : sl) = do
+  s' <- statement s
+  sl' <- statementList sl
+  return (s' : sl')
 
 statement :: Statement -> TypeMonad Statement
 statement (pos, sact) = putPos pos >> (sAct sact >>= return . ((,) pos))
@@ -107,16 +154,10 @@ sAct s@(Declare t v) = do
     _       -> throwTypeError ("Trying to redeclare variable " ++ v ++ ".")
 sAct s@(Decrease id) = getIdentifier id >> return s
 sAct s@(Increase id) = getIdentifier id >> return s
-sAct s@(Return e) = do
-  retT <- getType
-  eT <- expr e
-  if retT == eT
-    then return s
-    else throwTypeError ("Trying to return " ++ show eT ++ ", should be " ++
-                         show retT ++ ".")
 sAct s@(Print _) = return s
 sAct s@(Get _) = return s
 sAct s@(ProgramDoc _) = return s
+sAct s@(FunctionCallS _) = return s
 sAct (Until _ e sl) = do
   (st, sl') <- conditional e sl
   return (Until st e sl')
@@ -153,16 +194,12 @@ expr (BinOp op e1 e2) = do
     else throwTypeError ("Trying to apply operator " ++ op ++ " with arguments" ++
                          " of different types " ++ show t1 ++ " and " ++ show t2 ++
                          ".")
---expr (FunctionOp f args) = -- TODO
+expr (FunctionCall f args) = return MaliceInt
   
 -- Operators and types
 opTypes MaliceInt _ = return MaliceInt
 opTypes t op = throwTypeError ("The operator " ++ op ++ " can not be used with " ++
                                show t ++ ".")
 
-runSL :: StatementList -> Either TypeError StatementList
-runSL sl
-  = evalState (runErrorT $ statementList sl) (TypeState "" (0,0) MaliceInt [M.empty])
-
 maliceTypeCheck :: AST -> Either TypeError AST
-maliceTypeCheck ast = evalState (runErrorT $ astTypeCheck ast) (TypeState "" (0,0) MaliceInt [M.empty])
+maliceTypeCheck ast = evalState (runErrorT $ astTypeCheck ast) (TypeState "" (0,0) [] M.empty)

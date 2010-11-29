@@ -5,9 +5,9 @@ module Common
          AST(..), StatementList,
          Statement, StatementAct(..),
          FunctionArgs, Identifier(..),
-         Declaration, DeclarationAct(..),
+         Declaration, DeclarationList, DeclarationMap, DeclarationAct(..), mainFunction,
          Expr(..),
-         stringToType,
+         stringToType, declName,
          SymbolTable
        ) where
 
@@ -39,8 +39,10 @@ instance Eq MaliceType where
 type Position = (Int, Int)
 
 type FileName = String
-data AST = AST FileName SymbolTable StatementList [Declaration]
+data AST = AST FileName DeclarationList
          deriving (Show, Eq)
+                  
+mainFunction = "_main"
 
 type StatementList = [Statement]
 
@@ -55,18 +57,20 @@ data StatementAct
      | Print Expr
      | Get Identifier
      | ProgramDoc String
-     | ChangerCall String Identifier
-     | FunctionCall Expr
+     | FunctionCallS Expr
      -- Composite statements
      | Until SymbolTable Expr StatementList
      | IfElse [(SymbolTable, Expr, StatementList)]
      deriving (Show, Eq)
 
+type DeclarationList = [Declaration]
+
+type DeclarationMap = Map String DeclarationAct
+
 type Declaration = (Position, DeclarationAct)
 
 data DeclarationAct
      = Function SymbolTable String FunctionArgs MaliceType StatementList
-     | Changer SymbolTable String MaliceType StatementList
      deriving (Eq, Show)
 
 type FunctionArgs = [(String, MaliceType)]
@@ -83,7 +87,7 @@ instance Show Identifier where
 data Expr
      = UnOp String Expr
      | BinOp String Expr Expr
-     | FunctionOp String [Expr]
+     | FunctionCall String [Expr]
      | Int Int32
      | Char Char
      | String String
@@ -96,3 +100,5 @@ type SymbolTable = Map String MaliceType
 stringToType "number" = MaliceInt
 stringToType "letter" = MaliceChar
 stringToType "sentence" = MaliceString
+
+declName (Function _ s _ _ _) = s

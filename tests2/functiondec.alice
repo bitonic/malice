@@ -1,8 +1,11 @@
 x was a number.
+x became 5 + 3.
 
 The room foo(number y, number z) contained a number
   y ate.
-  x became (5 + 4).
+  k was a number.
+  k became 5 + 4.
+  Alice found k.
 
-The room foo(letter x) contained a letter
+The room bar(letter x) contained a letter
   Alice found x.

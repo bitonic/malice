@@ -57,7 +57,7 @@ mainparser f = do
   p_white 
   sl <- manyTill p_statement (try $ lookAhead ((p_cstring "The" >> return ()) <|> eof))
   ds <- manyTill p_declaration eof
-  return (AST f empty sl ds)
+  return (AST f (((0,0), Function empty mainFunction [] MaliceInt sl) : ds))
 
 p_separator = try (p_string "too" >> p_separator')
               <|> p_separator'
@@ -78,7 +78,7 @@ p_statement = do
         <|> try (p_until <* p_separator)
         <|> try (p_ifelse <* p_separator)
         <|> try (p_changercall <* p_separator)
-        <|> try (liftM FunctionCall p_functioncall <* p_separator)
+        <|> try (liftM FunctionCallS p_functioncall <* p_separator)
         <?> "statement")
   return ((sourceLine p, sourceColumn p), s)
 
@@ -163,7 +163,9 @@ p_changer = do
   name <- p_varName
   p_cstring "changed a"
   t <- p_type
-  liftM (Changer empty name t) $ manyTill p_statement p_nextfunction
+  sl <- manyTill (lookAhead (notFollowedBy (p_return >> return 'x')) >> p_statement) p_nextfunction
+  return $ Function empty name [("it", t)] t (sl ++
+                                              [((0,0), Return (Id (Single "it")))])
   
 p_nextfunction =
   eof
@@ -171,9 +173,10 @@ p_nextfunction =
   <?> "function or Looking-Glass declaration"
 
 p_changercall = do
-  var <- p_identifier
+  id <- p_identifier
   p_cstring "went through"
-  liftM ((flip ChangerCall) var) p_varName
+  function <- p_varName
+  return (Assign id (FunctionCall function [(Id id)]))
 
 p_type =
   try (liftM MaliceArray (p_type' <* p_string "arr"))
@@ -214,7 +217,7 @@ term = (lookAhead p_operator >> p_expr)
 
 p_functioncall = do
   f <- p_varName
-  liftM (FunctionOp f) (p_parens $ sepBy p_expr p_separator);
+  liftM (FunctionCall f) (p_parens $ sepBy p_expr p_separator);
 
 p_quotedstring = p_string "\"" >> manyTill anyChar (p_string "\"")
 
