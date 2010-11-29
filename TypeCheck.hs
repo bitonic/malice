@@ -1,6 +1,6 @@
 module TypeCheck
        (
---         maliceTypeCheck,
+         maliceTypeCheck,
        )         
        where
 
@@ -34,12 +34,9 @@ throwTypeError s = do
   state <- get
   throwError (TypeError (fileName state) (position state) s)
 
-condExprErr = "Conditional expressions must be of type" ++ (show MaliceInt)
-
 -- "Low level" methods on the state
 getSem :: (TypeState -> a) -> TypeMonad a
 getSem f = get >>= return . f
-
 
 getST = getSem symbolTables >>= return . head
 putST st = do
@@ -52,13 +49,11 @@ popST = do
 pushST st = do
   (TypeState fn pos t sts) <- get
   put (TypeState fn pos t (st : sts))
- 
 
 getPos = getSem position
 putPos pos = do
   (TypeState fn _ t st) <- get
   put (TypeState fn pos t st)
-
 
 getType = getSem returnType
 putType t = do
@@ -67,16 +62,20 @@ putType t = do
   return st
 
 -- Methods to get and put stuff
-getSymbol v = do
+lookupSymbol v = do
   sts <- getSem symbolTables
-  case look sts of
-    Nothing -> throwTypeError ("The variable " ++ v ++ " has not been declared.")
-    Just t  -> return t
+  return (look sts)
   where
     look [] = Nothing 
     look (st : sts) = case M.lookup v st of
       Nothing -> look sts
       Just t  -> Just t
+
+getSymbol v = do
+  declared <- lookupSymbol v
+  case declared of
+    Nothing -> throwTypeError ("The variable " ++ v ++ " has not been declared.")
+    Just t  -> return t
 
 getIdentifier (Single v) = getSymbol v
 getIdentifier (Array v _) = do
@@ -85,24 +84,16 @@ getIdentifier (Array v _) = do
     MaliceArraySize t _ -> return t
     MaliceArray t       -> return t
 
-{-
-putIdentifier :: Identifier -> Expr -> TypeMonad ()
-putIdentifier id e = do
-  t1 <- getIdentifier id
-  t2 <- expr e
-  if t1 == t2
-    then 
--}
-
 -- The mighty AST checker.
-
+astTypeCheck :: AST -> TypeMonad AST
+astTypeCheck (AST fn _ sl ds) = do
+  sl' <- statementList sl
+  [st] <- getSem symbolTables
+  return (AST fn st sl' ds)
+  
 -- Statements checker
 statementList :: StatementList -> TypeMonad StatementList
-statementList [] = return []
-statementList (s : sl) = do
-  s' <- statement s
-  sl' <- statementList sl
-  return (s' : sl')
+statementList = mapM statement
 
 statement :: Statement -> TypeMonad Statement
 statement (pos, sact) = putPos pos >> (sAct sact >>= return . ((,) pos))
@@ -110,9 +101,9 @@ statement (pos, sact) = putPos pos >> (sAct sact >>= return . ((,) pos))
 sAct :: StatementAct -> TypeMonad StatementAct
 sAct s@(Assign id e) = getIdentifier id >> expr e >> return s
 sAct s@(Declare t v) = do
-  st <- getST
-  case M.lookup v st of
-    Nothing -> putST (M.insert v t st) >> return s
+  declared <- lookupSymbol v
+  case declared of
+    Nothing -> (getST >>= (\st -> putST (M.insert v t st))) >> return s
     _       -> throwTypeError ("Trying to redeclare variable " ++ v ++ ".")
 sAct s@(Decrease id) = getIdentifier id >> return s
 sAct s@(Increase id) = getIdentifier id >> return s
@@ -125,16 +116,25 @@ sAct s@(Return e) = do
                          show retT ++ ".")
 sAct s@(Print _) = return s
 sAct s@(Get _) = return s
-sAct s@(ProgramDoc _) = throwTypeError ("Program description only allowed at" ++
-                                        " the beginning of the program.")  
+sAct s@(ProgramDoc _) = return s
 sAct (Until _ e sl) = do
+  (st, sl') <- conditional e sl
+  return (Until st e sl')
+sAct (IfElse blocks) = do
+  liftM (IfElse) (mapM block blocks)
+  where
+    block (_, e, sl) = do
+      (st, sl') <- conditional e sl
+      return (st, e, sl')
+
+conditional e sl = do
   t <- expr e
   if t == MaliceInt
     then do {pushST M.empty;
-             sl' <- statementList sl;
-             st <- popST;
-             return (Until st e sl');}
-    else throwTypeError condExprErr
+              sl' <- statementList sl;
+              st <- popST;
+              return (st, sl');}
+    else throwTypeError ("Conditional expressions must be of type" ++ (show MaliceInt))
 
 -- Expression checker
 expr :: Expr -> TypeMonad MaliceType
@@ -163,3 +163,6 @@ opTypes t op = throwTypeError ("The operator " ++ op ++ " can not be used with "
 runSL :: StatementList -> Either TypeError StatementList
 runSL sl
   = evalState (runErrorT $ statementList sl) (TypeState "" (0,0) MaliceInt [M.empty])
+
+maliceTypeCheck :: AST -> Either TypeError AST
+maliceTypeCheck ast = evalState (runErrorT $ astTypeCheck ast) (TypeState "" (0,0) MaliceInt [M.empty])
