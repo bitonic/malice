@@ -1,0 +1,12 @@
+x was a number and x became 4.
+y was a number and y became 10.
+z was a number and "Tell me z's value: " said Alice and what was z?
+
+perhaps ( x < 0 && x > 0 ) so
+  y became y*10.
+  y became z+y.
+  z became 2*y+z.
+Alice was unsure.
+
+"I will tell you what I've done! z is now: " said Alice and z spoke.
+	

@@ -23,37 +23,25 @@ registerName 5 = "edi"
 registerName r = error ("Error: Register index too high (" ++ (show r) ++ "). This really should not happen...")
 
 
+codeLLParam :: LLParam -> String
+codeLLParam (PVar v)
+  = "[" ++ v ++ "]"
+codeLLParam (PReg r)
+  = registerName r
+codeLLParam (PImm i)
+  = "dword " ++ (show i)
 
-codeGenLL :: [LLcmd] -> String
---codeGenLL (LLCpRegImm 0 i : LLRet : []) _
---  = "mov ebx, " ++ (show (truncate32to8 i)) ++ " ; program return code\n"
---	++ "mov eax, 0x1 ; syscall sys_exit\n"
---	++ "int 0x80\n"
-codeGenLL (LLCpRegVar r v : lls)
-  = "mov " ++ (registerName r) ++ ", [" ++ v ++ "]\n"
-    ++ (codeGenLL lls)
-codeGenLL (LLCpVarReg v r : lls)
-  = "mov [" ++ v ++ "], " ++ (registerName r) ++ "\n"
-    ++ (codeGenLL lls)
-codeGenLL (LLCpVarImm v imm : lls)
-  = "mov [" ++ v ++ "], dword " ++ (show imm) ++ "\n"
-    ++ (codeGenLL lls)
-codeGenLL (LLCpRegImm r i : lls)
-  = "mov " ++ (registerName r) ++ ", " ++ (show i) ++ "\n"
-    ++ (codeGenLL lls)
-codeGenLL (LLCpRegReg r1 r2 : lls)
-  = "mov " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
-    ++ (codeGenLL lls)
-codeGenLL (LLAdd r1 r2 : lls)
-  = "add " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
-    ++ (codeGenLL lls)
-codeGenLL (LLSub r1 r2 : lls)
-  = "sub " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
-    ++ (codeGenLL lls)
-codeGenLL (LLMul r1 r2 : lls)
-  = "imul " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
-    ++ (codeGenLL lls)
-codeGenLL (LLDiv r1 r2 : lls)
+
+codeGenLine :: LLcmd -> String
+codeGenLine (LLCp p1 p2)
+  = "mov " ++ (codeLLParam p1) ++ ", " ++ (codeLLParam p2) ++ "\n"
+codeGenLine (LLAdd p1 p2)
+  = "add " ++ (codeLLParam p1) ++ ", " ++ (codeLLParam p2) ++ "\n"
+codeGenLine (LLSub p1 p2)
+  = "sub " ++ (codeLLParam p1) ++ ", " ++ (codeLLParam p2) ++ "\n"
+codeGenLine (LLMul p1 p2)
+  = "imul " ++ (codeLLParam p1) ++ ", " ++ (codeLLParam p2) ++ "\n"
+codeGenLine (LLDiv (PReg r1) (PReg r2))
 -- WARNING: If r1 == 3 and r2 == 0 we will have loss of information...
 -- To be fixed later with register allocation.
   = "push eax\n"
@@ -64,8 +52,7 @@ codeGenLL (LLDiv r1 r2 : lls)
     ++ "mov " ++ (registerName r1) ++ ", eax\n"
     ++ (if (r1 /= 3) then "pop edx\n" else "add esp, 4\n")
     ++ (if (r1 /= 0) then "pop eax\n" else "add esp, 4\n")
-    ++ (codeGenLL lls)
-codeGenLL (LLMod r1 r2 : lls)
+codeGenLine (LLMod (PReg r1) (PReg r2))
 -- WARNING: If r1 == 3 and r2 == 0 we will have loss of information...
 -- To be fixed later with register allocation.
   = "push eax\n"
@@ -76,61 +63,56 @@ codeGenLL (LLMod r1 r2 : lls)
     ++ "mov " ++ (registerName r1) ++ ", edx\n"
     ++ (if (r1 /= 3) then "pop edx\n" else "add esp, 4\n")
     ++ (if (r1 /= 0) then "pop eax\n" else "add esp, 4\n")
-    ++ (codeGenLL lls)
-codeGenLL (LLAnd r1 r2 : lls)
-  = "and " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
-    ++ (codeGenLL lls)
-codeGenLL (LLOr r1 r2 : lls)
-  = "or " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
-    ++ (codeGenLL lls)
-codeGenLL (LLXOr r1 r2 : lls)
-  = "xor " ++ (registerName r1) ++ ", " ++ (registerName r2) ++ "\n"
-    ++ (codeGenLL lls)
-codeGenLL (LLDec r : lls)
-  = "dec " ++ (registerName r) ++ "\n"
-    ++ (codeGenLL lls)
-codeGenLL (LLInc r : lls)
-  = "inc " ++ (registerName r) ++ "\n"
-    ++ (codeGenLL lls)
-codeGenLL (LLNot r : lls)
-  = codeGenLL ( (LLCpRegReg (r+1) r) : (LLCpRegImm r 256) : (LLSub r (r+1))
-                : lls )
-codeGenLL (LLAddImm r1 imm : lls)
-  = "add " ++ (registerName r1) ++ ", " ++ (show imm) ++ "\n"
-    ++ (codeGenLL lls)
-codeGenLL (LLSubImm r1 imm : lls)
-  = "sub " ++ (registerName r1) ++ ", " ++ (show imm) ++ "\n"
-    ++ (codeGenLL lls)
-codeGenLL (LLMulImm r1 imm : lls)
-  = "imul " ++ (registerName r1) ++ ", " ++ (show imm) ++ "\n"
-    ++ (codeGenLL lls)
-codeGenLL (LLDivImm r1 imm : lls)
-  = codeGenLL ( (LLCpRegImm (r1+1) imm) : (LLDiv r1 (r1+1)) : lls )
-codeGenLL (LLModImm r1 imm : lls)
-  = codeGenLL ( (LLCpRegImm (r1+1) imm) : (LLMod r1 (r1+1)) : lls )
-codeGenLL (LLAndImm r1 imm : lls)
-  = "and " ++ (registerName r1) ++ ", " ++ (show imm) ++ "\n"
-    ++ (codeGenLL lls)
-codeGenLL (LLOrImm r1 imm : lls)
-  = "or " ++ (registerName r1) ++ ", " ++ (show imm) ++ "\n"
-    ++ (codeGenLL lls)
-codeGenLL (LLXOrImm r1 imm : lls)
-  = "xor " ++ (registerName r1) ++ ", " ++ (show imm) ++ "\n"
-    ++ (codeGenLL lls)
-codeGenLL (LLRet : lls)
-  = "ret\n" ++ (codeGenLL lls)
-codeGenLL (LLSpSub imm : lls)
-  = "sub esp, " ++ (show imm) ++ "\n" ++ (codeGenLL lls)
-codeGenLL (LLSpAdd imm : lls)
-  = "add esp, " ++ (show imm) ++ "\n" ++ (codeGenLL lls)
-codeGenLL (LLPush r : lls)
-  = "push " ++ (registerName r) ++ "\n"
-    ++ (codeGenLL lls)
-codeGenLL (LLPop r : lls)
-  = "pop " ++ (registerName r) ++ "\n"
-    ++ (codeGenLL lls)
-codeGenLL [ ]
-  = ""
+codeGenLine (LLDiv (PReg r1) (PImm imm))
+  = codeGenLL [
+      (LLCp (PReg (succ r1)) (PImm imm)),
+      (LLDiv (PReg r1) (PReg (succ r1))) ]
+codeGenLine (LLMod (PReg r1) (PImm imm))
+  = codeGenLL [
+      (LLCp (PReg (succ r1)) (PImm imm)),
+      (LLMod (PReg r1) (PReg (succ r1))) ]
+codeGenLine (LLAnd p1 p2)
+  = "and " ++ (codeLLParam p1) ++ ", " ++ (codeLLParam p2) ++ "\n"
+codeGenLine (LLOr p1 p2)
+  = "or " ++ (codeLLParam p1) ++ ", " ++ (codeLLParam p2) ++ "\n"
+codeGenLine (LLXOr p1 p2)
+  = "xor " ++ (codeLLParam p1) ++ ", " ++ (codeLLParam p2) ++ "\n"
+codeGenLine (LLDec p1)
+  = "dec " ++ (codeLLParam p1) ++ "\n"
+codeGenLine (LLInc p1)
+  = "inc " ++ (codeLLParam p1) ++ "\n"
+codeGenLine (LLNot (PReg r))
+  = codeGenLL [
+      (LLCp (PReg (succ r)) (PReg r)),
+      (LLCp (PReg r) (PImm 255)),
+      (LLSub (PReg r) (PReg (succ r))) ]
+--codeGenLine (LLNot (PVar v))
+--  = codeGenLL [
+--      (LLCp (PReg r) (PImm 255)),
+--      (LLSub (PReg r) (PVar v)),
+--      (LLCp (PVar v) (PReg r)) ]
+codeGenLine (LLRet)
+  = "ret\n"
+codeGenLine (LLSpSub imm)
+  = "sub esp, " ++ (show imm) ++ "\n"
+codeGenLine (LLSpAdd imm)
+  = "add esp, " ++ (show imm) ++ "\n"
+codeGenLine (LLPush p1)
+  = "push " ++ (codeLLParam p1) ++ "\n"
+codeGenLine (LLPop p1)
+  = "pop " ++ (codeLLParam p1) ++ "\n"
+codeGenLine (LLDiv _ _)
+  = error "codeGenLine: Impossible operand combination for LLDiv on i386"
+codeGenLine (LLMod _ _)
+  = error "codeGenLine: Impossible operand combination for LLMod on i386"
+codeGenLine (LLNot _)
+  = error "codeGenLine: Impossible operand combination for LLNot"
+--codeGenLine _
+--  = error "codeGenLine: Unknown operator/operand combination"
+
+
+codeGenLL :: [LLcmd] -> String
+codeGenLL lls = concat $ map codeGenLine lls
 
 
 asmPrologue :: String

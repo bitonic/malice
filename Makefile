@@ -2,7 +2,7 @@ GHCFLAGS = -Wall -O2 --make -fno-warn-missing-signatures
 
 .PHONY : malice2asm
 malice2asm:
-	ghc ${GHCFLAGS} -o malice2asm Parser.hs Semantics.hs LLGen.hs CodeGen.hs Malice.hs
+	ghc ${GHCFLAGS} -o malice2asm Parser.hs Semantics.hs OptimExpr.hs LLGen.hs CodeGen.hs Malice.hs
 
 
 .PHONY : compile
@@ -20,3 +20,9 @@ clean:
 tar:
 	rm -f malice_m2.tar.gz
 	tar zcvf malice_m2.tar.gz *.hs compile Makefile AUTHORS README
+
+.PHONY : test
+test: malice2asm
+	./dotests.sh autotest/at-m2
+	./dotests.sh autotest/at-m2extra
+	./dotests.sh autotest/at-m2grad
