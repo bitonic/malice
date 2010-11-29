@@ -34,23 +34,9 @@ throwTypeError s = do
   state <- get
   throwError (TypeError (fileName state) (position state) s)
 
+-- "Low level" methods on the state
 getSem :: (TypeState -> a) -> TypeMonad a
 getSem f = get >>= return . f
-
-getIdentifier :: Identifier -> TypeMonad MaliceType
-getIdentifier (Single v) = getSymbol v
-getIdentifier (Array v _) = do
-  arr <- getSymbol v
-  case arr of
-    MaliceArraySize t _ -> return t
-    MaliceArray t       -> return t
-  
-getSymbol :: String -> TypeMonad MaliceType
-getSymbol v = do
-  st <- getSem symbolTable
-  case M.lookup v st of
-    Nothing -> throwTypeError ("The variable " ++ v ++ " has not been declared.")
-    Just t  -> return t
   
 getST :: TypeMonad SymbolTable
 getST = getSem symbolTable
@@ -73,6 +59,64 @@ putType t = do
   (TypeState fn pos _ st) <- get
   put (TypeState fn pos t st)
   return st
+
+-- Methods to get and put stuff
+getSymbol :: String -> TypeMonad MaliceType
+getSymbol v = do
+  st <- getSem symbolTable
+  case M.lookup v st of
+    Nothing -> throwTypeError ("The variable " ++ v ++ " has not been declared.")
+    Just t  -> return t
+
+getIdentifier :: Identifier -> TypeMonad MaliceType
+getIdentifier (Single v) = getSymbol v
+getIdentifier (Array v _) = do
+  arr <- getSymbol v
+  case arr of
+    MaliceArraySize t _ -> return t
+    MaliceArray t       -> return t
+
+{-
+putIdentifier :: Identifier -> Expr -> TypeMonad ()
+putIdentifier id e = do
+  t1 <- getIdentifier id
+  t2 <- expr e
+  if t1 == t2
+    then 
+-}
+
+-- The mighty AST checker.
+
+-- Statements checker
+statementList :: StatementList -> TypeMonad StatementList
+statementList [] = return []
+statementList (s : sl) = do
+  s' <- statement s
+  sl' <- statementList sl
+  return (s' : sl')
+
+statement :: Statement -> TypeMonad Statement
+statement (pos, sact) = putPos pos >> (sAct sact >>= return . ((,) pos))
+
+sAct s@(Assign id e) = getIdentifier id >> expr e >> return s
+sAct s@(Declare t v) = do
+  st <- getST
+  case M.lookup v st of
+    Nothing -> putST (M.insert v t st) >> return s
+    _       -> throwTypeError ("Trying to redeclare variable " ++ v ++ ".")
+sAct s@(Decrease id) = getIdentifier id >> return s
+sAct s@(Increase id) = getIdentifier id >> return s
+sAct s@(Return e) = do
+  retT <- getType
+  eT <- expr e
+  if retT == eT
+    then return s
+    else throwTypeError ("Trying to return " ++ show eT ++ ", should be " ++
+                         show retT ++ ".")
+sAct s@(Print _) = return s
+sAct s@(Get _) = return s
+sAct s@(ProgramDoc _) = throwTypeError ("Program description only allowed at" ++
+                                        " the beginning of the program.")  
 
 -- Expression checker
 expr :: Expr -> TypeMonad MaliceType
@@ -98,6 +142,6 @@ opTypes MaliceInt _ = return MaliceInt
 opTypes t op = throwTypeError ("The operator " ++ op ++ " can not be used with " ++
                                show t ++ ".")
 
-runExpression :: Expr -> Either TypeError MaliceType
-runExpression e
-  = evalState (runErrorT $ expr e) (TypeState "" (0,0) MaliceInt (M.fromList [("loller", MaliceInt),("x",MaliceInt),("arr",MaliceArraySize MaliceInt (Int 7))]))
+runSL :: StatementList -> Either TypeError StatementList
+runSL sl
+  = evalState (runErrorT $ statementList sl) (TypeState "" (0,0) MaliceInt M.empty)
