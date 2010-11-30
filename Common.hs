@@ -84,9 +84,9 @@ showS (Get id) _ = "Get " ++ show id
 showS (Comment _) _ = "---"
 showS (FunctionCallS e) _ = show e
 showS (Until st e sl) ind = "Until " ++ show e ++ " becomes true {\n" ++
-                            showSL sl ind ++ "\n}"
+                            showSL sl ind ++ "\n" ++ ind ++ "\b\b\b\b}"
 showS (IfElse blocks) ind = first (head blocks) ++ concatMap ifelse (tail blocks) ++
-                            "\n    }"
+                            "\n" ++ ind ++ "\b\b\b\b}"
   where
     first (st, e, sl) = "If " ++ show e ++ " {\n" ++ showSL sl ind
     ifelse (st, e, sl) = switch ++ " {\n" ++ showSL sl ind
@@ -145,7 +145,7 @@ instance Show Expr where
   show (String s) = s
   show (Id id) = show id
               
-type SymbolTable = Map String MaliceType
+type SymbolTable = Map String (MaliceType, Int)
 
 --Utils
 stringToType "number" = MaliceInt

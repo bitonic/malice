@@ -71,11 +71,12 @@ lookupSymbol v = do
       Nothing -> look sts
       Just t  -> Just t
 
+getIdentifier :: Identifier -> TypeMonad MaliceType
 getIdentifier (SingleElement v) = do 
   declared <- lookupSymbol v
   case declared of
     Nothing -> throwTypeError ("The variable \"" ++ v ++ "\" has not been declared.")
-    Just t  -> return t
+    Just (t, _) -> return t
 getIdentifier (ArrayElement v _) = do
   arr <- getIdentifier (SingleElement v)
   case arr of
@@ -104,7 +105,7 @@ declaration (pos, d) = dAct d >>= return . (,) pos
   
 dAct :: DeclarationAct -> TypeMonad DeclarationAct
 dAct f@(Function _ name args t sl) = do
-  pushST (M.fromList args)
+  pushST (M.fromList (map (\(n, t) -> (n, (t, 0))) args))
   sl' <- statementList sl
   st <- popST
   return (Function st name args t sl)
@@ -133,7 +134,7 @@ sAct s@(Assign id e) = do
 sAct s@(Declare t v) = do
   declared <- lookupSymbol v
   case declared of
-    Nothing -> (getST >>= (putST . M.insert v t)) >> return s
+    Nothing -> (getST >>= (putST . M.insert v (t, 0))) >> return s
     _       -> throwTypeError ("Trying to redeclare variable " ++ v ++ ".")
 sAct s@(Decrease id) = getIdentifier id >> return s
 sAct s@(Increase id) = getIdentifier id >> return s
