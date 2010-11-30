@@ -23,7 +23,13 @@ data MaliceType = MaliceInt
                 | MaliceString
                 | MaliceArray MaliceType
                 | MaliceArraySize MaliceType Expr
-                deriving (Show)
+                         
+instance Show MaliceType where
+  show MaliceInt = "number"
+  show MaliceChar = "letter"
+  show MaliceString = "sentence"
+  show (MaliceArray t) = "spider " ++ show t
+  show (MaliceArraySize t _) = show (MaliceArray t)
                          
 instance Eq MaliceType where                      
   (MaliceArray t) == (MaliceArraySize t' _) = t == t'
@@ -33,7 +39,7 @@ instance Eq MaliceType where
   MaliceChar == MaliceChar = True
   MaliceString == MaliceString = True
   _ == _ = False
-                        
+
 type Position = (Int, Int)
 
 type FileName = String
@@ -43,7 +49,7 @@ data AST = AST FileName DeclarationList
 instance Show AST where
   show (AST fn dl) =
     "File " ++ fn ++ ":\n\n" ++
-    show dl
+    showDL dl
 
 mainFunction = "_main"
 
@@ -83,7 +89,11 @@ type FunctionArgs = [(String, MaliceType)]
 
 data Identifier = SingleElement String -- String = name of the variable
                 | ArrayElement String Expr -- Name position
-                deriving (Eq,Show)
+                deriving (Eq)
+                        
+instance Show Identifier where
+  show (SingleElement s) = "variable " ++ s
+  show (ArrayElement s _) = "variable " ++ s ++ "'s piece"
 
 {-                         
 instance Show Identifier where

@@ -20,7 +20,8 @@ instance Error TypeError where
 
 instance Show TypeError where
   show (TypeError fn pos mess) =
-    show fn ++ show pos ++ "\n" ++ mess ++ "\n"
+    "\"" ++ fn ++ "\"" ++ " (line " ++ show (fst pos) ++
+    ", column " ++ show (snd pos) ++ "):\n" ++ mess
 
 type TypeMonad = ErrorT TypeError (State TypeState)
 
@@ -73,7 +74,7 @@ lookupSymbol v = do
 getIdentifier (SingleElement v) = do 
   declared <- lookupSymbol v
   case declared of
-    Nothing -> throwTypeError ("The variable " ++ v ++ " has not been declared.")
+    Nothing -> throwTypeError ("The variable \"" ++ v ++ "\" has not been declared.")
     Just t  -> return t
 getIdentifier (ArrayElement v _) = do
   arr <- getIdentifier (SingleElement v)
@@ -121,7 +122,13 @@ statement :: Statement -> TypeMonad Statement
 statement (pos, sact) = putPos pos >> fmap ((,) pos) (sAct sact)
 
 sAct :: StatementAct -> TypeMonad StatementAct
-sAct s@(Assign id e) = getIdentifier id >> expr e >> return s
+sAct s@(Assign id e) = do
+  t1 <- getIdentifier id
+  t2 <- expr e
+  if t1 == t2
+    then return s
+    else throwTypeError ("Trying to assign a value of type " ++ show t2 ++
+                         " to \"" ++ show id ++ "\" of type " ++ show t1 ++ ".")
 sAct s@(Declare t v) = do
   declared <- lookupSymbol v
   case declared of
@@ -149,7 +156,8 @@ conditional e sl = do
               sl' <- statementList sl;
               st <- popST;
               return (st, sl');}
-    else throwTypeError ("Conditional expressions must be of type" ++ show MaliceInt)
+    else throwTypeError ("Conditional expressions must be of type " ++
+                         show MaliceInt ++ ".")
 
 -- Expression checker
 expr :: Expr -> TypeMonad MaliceType
@@ -165,14 +173,14 @@ expr (BinOp op e1 e2) = do
   t2 <- expr e2
   if t1 == t2
     then opTypes t1 op
-    else throwTypeError ("Trying to apply operator " ++ op ++ " with arguments" ++
+    else throwTypeError ("Trying to apply operator \"" ++ op ++ "\" with arguments" ++
                          " of different types " ++ show t1 ++ " and " ++ show t2 ++
                          ".")
 expr (FunctionCall f args) = do
   dm <- getDM
   case M.lookup f dm of
     Just fun -> checkFun fun
-    Nothing  -> throwTypeError ("Trying to call undeclared function " ++ f ++ ".")
+    Nothing  -> throwTypeError ("Trying to call undeclared function \"" ++ f ++ "\".")
   where
     checkFun (Function _ _ argsF t _) =
       if length args == length argsF 
@@ -181,17 +189,18 @@ expr (FunctionCall f args) = do
           if and (zipWith (\(_, t1) t2 -> t1 == t2) argsF argsT) then
             return t
           else
-            throwTypeError ("Invalid types for the arguments of function " ++ f ++ ".");
+            throwTypeError ("Invalid types for the arguments of function \"" ++ f ++ "\".");
           }
-        else throwTypeError ("Invalid number of arguments for function " ++ f ++
-                             ", " ++ show (length args) ++ " instead of " ++
+        else throwTypeError ("Invalid number of arguments for function \"" ++ f ++
+                             "\", " ++ show (length args) ++ " instead of " ++
                              show (length argsF) ++ ".")
           
   
 -- Operators and types
 opTypes MaliceInt _ = return MaliceInt
-opTypes t op = throwTypeError ("The operator " ++ op ++ " can not be used with " ++
-                               show t ++ ".")
+opTypes t op = throwTypeError ("The operator \"" ++ op ++
+                               "\" can not be used with type" ++ show t ++ ".")
 
 maliceTypeCheck :: AST -> Either TypeError AST
-maliceTypeCheck ast = evalState (runErrorT $ astTypeCheck ast) (TypeState "" (0,0) [] M.empty)
+maliceTypeCheck ast@(AST fn _) =
+  evalState (runErrorT $ astTypeCheck ast) (TypeState fn (0,0) [] M.empty)
