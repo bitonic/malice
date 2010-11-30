@@ -7,9 +7,9 @@ module CodeGen
 
 import Common
 import LLGen
+import qualified Data.Map as M
 {-
 --import Control.Monad.State
---import qualified Data.Map as M
 
 type LLMonad = State (String, Map String Int, Int)
 
@@ -22,6 +22,8 @@ putFunName n = do
   (_, m, i) <- get
   put (n, m, i) 
 -}
+
+type VarMap = [(Variable, String)]
 
 --maxreg :: Register
 --maxreg = 4
@@ -132,17 +134,19 @@ codeGenLLsimple :: [LLcmd] -> String
 codeGenLLsimple lls = concat $ map codeGenLine lls
 
 
-getFunName :: (String) -> String
+type ScopeInfo = (String)
+
+getFunName :: ScopeInfo -> String
 getFunName (fn) = fn
 
 --            body       f-name      asm
-codeGenLL :: [LLcmd] -> (String) -> String
-codeGenLL (LLRet : ls) ed
-  = "jmp end_" ++ (getFunName ed) ++ "\n"
-    ++ codeGenLL ls ed
-codeGenLL (l:ls) ed
+codeGenLL :: [LLcmd] -> ScopeInfo -> String
+codeGenLL (LLRet : ls) si
+  = "jmp end_" ++ (getFunName si) ++ "\n"
+    ++ codeGenLL ls si
+codeGenLL (l:ls) si
   = codeGenLine l
-    ++ codeGenLL ls ed
+    ++ codeGenLL ls si
 codeGenLL [] _
   = "mov eax, 0\n"
 
@@ -151,28 +155,12 @@ asmPrologue :: String
 asmPrologue = "\n"
               ++ "; Code for Linux on IA-32:\n"
               ++ "\n"
-              ++ "section .text ; start of code\n"
-              ++ "global _start ; export the main function\n"
-              ++ "\n"
-              ++ "_start:\n"
-              ++ "call " ++ mainFunction ++ "\n"
-              ++ "mov ebx, eax\n"
-              ++ "mov eax, 1\n"
-              ++ "int 0x80\n"
-              ++ "\n\n"
+              ++ "section .text ; start of code\n\n"
 
-{-
-llAllocLocVars :: StatementList -> LLcmd
-llAllocLocVars sl
-  = LLSpSub $ fromIntegral (4 * (length $ getDecls $ sl))
-
-llDeallocLocVars :: StatementList -> LLcmd
-llDeallocLocVars sl
-  = LLSpAdd $ fromIntegral (4 * (length . getDecls $ sl))
 
 getVarMap :: StatementList -> Int -> VarMap
-getVarMap (Declare _ x : sl) offset
-  = (x, "[esp+" ++ (show offset) ++ "]") : getVarMap sl (offset + 4)
+getVarMap ((_, (Declare _ x)) : sl) offset
+  = (x, "[ebp-" ++ (show offset) ++ "]") : getVarMap sl (offset + 4)
 getVarMap (_ : sl) offset
   = getVarMap sl offset
 getVarMap [] _
@@ -185,18 +173,6 @@ lookupVar x varmap
   where
     varass = [ str | (var, str) <- varmap, var == x ] 
 
-fiddleDealloc :: [LLcmd] -> StatementList -> [LLcmd]
-fiddleDealloc (LLRet : lls) sl
-  = (llDeallocLocVars sl) : (LLRet : (fiddleDealloc lls sl))
-fiddleDealloc (ls : lls) sl
-  = ls : (fiddleDealloc lls sl)
-fiddleDealloc [ ] _
-  = [ ]
--}
-
-codeGenGlobVar :: Variable -> MaliceType -> String -> String
-codeGenGlobVar v _ rest
-  = v ++ " DD 0\n" ++ rest
 
 --maliceCodeGen :: StatementList -> VarTypes -> String
 --maliceCodeGen sl vt = asmPrologue ++ codeGenLL llsl ++ globs
@@ -205,17 +181,40 @@ codeGenGlobVar v _ rest
 --    globs = "\n\nsection .data ; global variables go here\n" ++ M.foldWithKey codeGenGlobVar "" vt
 
 
+assignVarsS :: VarMap -> Statement -> Statement
+assignVarsS vm (pos, sa) = (pos, sa)
+
+assignVarsSL :: StatementList -> StatementList
+assignVarsSL sl = map (assignVarsS (getVarMap sl 4)) sl
+
+
 codeGenDA :: DeclarationAct -> String
 --codeGenDA (Function symtab name arglist rettype body)
-codeGenDA (Function _ name _ _ body)
+codeGenDA (Function symtab name _ _ body)
   = "\n"
     ++ "global " ++ name ++ "\n"
     ++ name ++ ":\n\n"
-    ++ codeGenLL (maliceLL body) name
+    ++ codeGenLLsimple llSave
+    ++ "push ebp\n"
+    ++ "mov ebp, esp\n"
+    ++ codeGenLine llAlloc
+    ++ "\n"
+    ++ codeGenLL (maliceLL newbody) name
     ++ "\n"
     ++ "end_" ++ name ++ ":\n"
-    ++ "ret"
+    ++ codeGenLine llDealloc
+    ++ "pop ebp\n" 
+    ++ codeGenLLsimple llRestore
+    ++ "ret\n"
+    ++ show (getVarMap body 4)
     ++ "\n"
+    ++ show symtab
+  where
+    llAlloc = (LLSpSub $ fromIntegral (4 * (M.size symtab)))
+    llDealloc = (LLSpAdd $ fromIntegral (4 * (M.size symtab)))
+    llSave = [LLPush (PReg 1)]
+    llRestore = [LLPop (PReg 1)]
+    newbody = assignVarsSL body
 
 codeGenD :: Declaration -> String
 codeGenD (_, da) = codeGenDA da

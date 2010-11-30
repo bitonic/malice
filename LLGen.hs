@@ -137,31 +137,31 @@ llExp (Var var) destreg
 -}
 
 
-llS :: StatementAct -> Register -> [LLcmd]
-llS (Declare _ _) _
+llSA :: StatementAct -> Register -> [LLcmd]
+llSA (Declare _ _) _
   = []
-llS (Assign (SingleElement var) (Int imm)) _
+llSA (Assign (SingleElement var) (Int imm)) _
   = [LLCp (PVar var) (PImm imm)]
-llS (Assign (SingleElement var) exp1) destreg
+llSA (Assign (SingleElement var) exp1) destreg
   = (llExp (optimiseExpr exp1) destreg) ++ [(LLCp (PVar var) (PReg destreg))]
-llS (Decrease (SingleElement var)) destreg
+llSA (Decrease (SingleElement var)) destreg
   = [(LLCp (PReg destreg) (PVar var)), (LLDec (PReg destreg)), (LLCp (PVar var) (PReg destreg))]
-llS (Increase (SingleElement var)) destreg
+llSA (Increase (SingleElement var)) destreg
   = [(LLCp (PReg destreg) (PVar var)), (LLInc (PReg destreg)), (LLCp (PVar var) (PReg destreg))]
-llS (Return exp1) destreg
+llSA (Return exp1) destreg
   = (llExp (optimiseExpr exp1) destreg) ++ [LLRet]
 
 
-llSA :: Statement -> Register -> [LLcmd]
-llSA s destreg
-  = (LLSrcLine $ fromIntegral line) : (llS sa destreg)
+llS :: Statement -> [LLcmd]
+llS s
+  = (LLSrcLine $ fromIntegral line) : (llSA sa 0)
   where
     ((line, _), sa) = s
 
-llSL :: StatementList -> Register -> [LLcmd]
-llSL ss destreg
-  = concat $ map (flip llSA destreg) ss
+llSL :: StatementList -> [LLcmd]
+llSL ss
+  = concat $ map (llS) ss
 
 
 maliceLL :: StatementList -> [LLcmd]
-maliceLL sl = llSL sl 0
+maliceLL sl = llSL sl
