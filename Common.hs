@@ -74,7 +74,7 @@ data StatementAct
 
 type DeclarationList = [Declaration]
 
-showDL dl = map show dl
+showDL dl = concatMap (\(_, d) -> show d ++ "\n") dl
 
 type DeclarationMap = Map String DeclarationAct
 
@@ -94,12 +94,6 @@ data Identifier = SingleElement String -- String = name of the variable
 instance Show Identifier where
   show (SingleElement s) = "variable " ++ s
   show (ArrayElement s _) = "variable " ++ s ++ "'s piece"
-
-{-                         
-instance Show Identifier where
-  show (Single s) = "variable " ++ show s
-  show (Array s _) = "array " ++ show s
--}
 
 data Expr
      = UnOp String Expr
