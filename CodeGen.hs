@@ -7,7 +7,21 @@ module CodeGen
 
 import Common
 import LLGen
+{-
+--import Control.Monad.State
 --import qualified Data.Map as M
+
+type LLMonad = State (String, Map String Int, Int)
+
+getFunName :: State String
+getFunName = do
+  (n, _, _) <- get
+  return n
+putFunName :: String -> State ()
+putFunName n = do
+  (_, m, i) <- get
+  put (n, m, i) 
+-}
 
 --maxreg :: Register
 --maxreg = 4
@@ -65,11 +79,11 @@ codeGenLine (LLMod (PReg r1) (PReg r2))
     ++ (if (r1 /= 3) then "pop edx\n" else "add esp, 4\n")
     ++ (if (r1 /= 0) then "pop eax\n" else "add esp, 4\n")
 codeGenLine (LLDiv (PReg r1) (PImm imm))
-  = codeGenLL [
+  = codeGenLLsimple [
       (LLCp (PReg (succ r1)) (PImm imm)),
       (LLDiv (PReg r1) (PReg (succ r1))) ]
 codeGenLine (LLMod (PReg r1) (PImm imm))
-  = codeGenLL [
+  = codeGenLLsimple [
       (LLCp (PReg (succ r1)) (PImm imm)),
       (LLMod (PReg r1) (PReg (succ r1))) ]
 codeGenLine (LLAnd p1 p2)
@@ -83,7 +97,7 @@ codeGenLine (LLDec p1)
 codeGenLine (LLInc p1)
   = "inc " ++ (codeLLParam p1) ++ "\n"
 codeGenLine (LLNot (PReg r))
-  = codeGenLL [
+  = codeGenLLsimple [
       (LLCp (PReg (succ r)) (PReg r)),
       (LLCp (PReg r) (PImm 255)),
       (LLSub (PReg r) (PReg (succ r))) ]
@@ -114,8 +128,23 @@ codeGenLine (LLSrcLine i)
 --  = error "codeGenLine: Unknown operator/operand combination"
 
 
-codeGenLL :: [LLcmd] -> String
-codeGenLL lls = concat $ map codeGenLine lls
+codeGenLLsimple :: [LLcmd] -> String
+codeGenLLsimple lls = concat $ map codeGenLine lls
+
+
+getFunName :: (String) -> String
+getFunName (fn) = fn
+
+--            body       f-name      asm
+codeGenLL :: [LLcmd] -> (String) -> String
+codeGenLL (LLRet : ls) ed
+  = "jmp end_" ++ (getFunName ed) ++ "\n"
+    ++ codeGenLL ls ed
+codeGenLL (l:ls) ed
+  = codeGenLine l
+    ++ codeGenLL ls ed
+codeGenLL [] _
+  = "mov eax, 0\n"
 
 
 asmPrologue :: String
@@ -180,8 +209,9 @@ codeGenDA :: DeclarationAct -> String
 --codeGenDA (Function symtab name arglist rettype body)
 codeGenDA (Function _ name _ _ body)
   = "\n"
+    ++ "global " ++ name ++ "\n"
     ++ name ++ ":\n\n"
-    ++ codeGenLL (maliceLL body)
+    ++ codeGenLL (maliceLL body) name
     ++ "\n"
     ++ "end_" ++ name ++ ":\n"
     ++ "ret"
