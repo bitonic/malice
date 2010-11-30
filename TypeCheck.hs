@@ -85,7 +85,7 @@ getIdentifier (ArrayElement v _) = do
 
 -- The mighty AST checker.
 astTypeCheck :: AST -> TypeMonad AST
-astTypeCheck (AST fn dl)= do
+astTypeCheck (AST fn dl) = do
   declMap dl
   dl' <- mapM declaration dl
   return (AST fn dl')
@@ -108,7 +108,7 @@ dAct f@(Function _ name args t sl) = do
   pushST (M.fromList (map (\(n, t) -> (n, (t, -1))) args))
   sl' <- statementList sl
   st <- popST
-  return (Function st name args t sl)
+  return (Function st name args t sl')
 
 -- Statements checker
 statementList :: StatementList -> TypeMonad StatementList
@@ -155,9 +155,9 @@ conditional e sl = do
   t <- expr e
   if t == MaliceInt
     then do {pushST M.empty;
-              sl' <- statementList sl;
-              st <- popST;
-              return (st, sl');}
+             sl' <- statementList sl;
+             st <- popST;
+             return (st, sl');}
     else throwTypeError ("Conditional expressions must be of type " ++
                          show MaliceInt ++ ".")
 
@@ -191,7 +191,8 @@ expr (FunctionCall f args) = do
           if and (zipWith (\(_, t1) t2 -> t1 == t2) argsF argsT) then
             return t
           else
-            throwTypeError ("Invalid types for the arguments of function \"" ++ f ++ "\".");
+            throwTypeError ("Invalid types for the arguments of function \"" ++
+                            f ++ "\".");
           }
         else throwTypeError ("Invalid number of arguments for function \"" ++ f ++
                              "\", " ++ show (length args) ++ " instead of " ++

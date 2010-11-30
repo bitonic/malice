@@ -13,8 +13,9 @@ module Common
 
 import Data.Int ( Int32 )
 import Data.Map ( Map )
+import qualified Data.Map as M
 
--- Abstact Syntax Tree definition
+-- Abstact Syntax Tree definitEmptyion
 -- The --Pos ones are used in the semantics, so that we
 -- can have nice error messages.
 
@@ -23,7 +24,7 @@ data MaliceType = MaliceInt
                 | MaliceString
                 | MaliceArray MaliceType
                 | MaliceArraySize MaliceType Expr
-                         
+
 instance Show MaliceType where
   show MaliceInt = "number"
   show MaliceChar = "letter"
@@ -55,7 +56,7 @@ mainFunction = "_main"
 
 type StatementList = [Statement]
 
-showSL sl ind = init $ concatMap (\(_, s) -> ind ++ showS s (ind ++ "    ") ++ "\n") sl
+showSL sl ind = initEmpty $ concatMap (\(_, s) -> ind ++ showS s (ind ++ "    ") ++ "\n") sl
 
 type Statement = (Position, StatementAct)
 
@@ -83,16 +84,23 @@ showS (Print e) _ = "Print \"" ++ show e ++ "\""
 showS (Get id) _ = "Get " ++ show id
 showS (Comment _) _ = "---"
 showS (FunctionCallS e) _ = show e
-showS (Until st e sl) ind = "Until " ++ show e ++ " becomes true {\n" ++
+showS (Until st e sl) ind = "Until " ++ show e ++ " becomes true\n" ++
+                            showStOrNot st ind ++
+                            ind ++ "\b\b\b\b{\n" ++
                             showSL sl ind ++ "\n" ++ ind ++ "\b\b\b\b}"
-showS (IfElse blocks) ind = first (head blocks) ++ concatMap ifelse (tail blocks) ++
-                            "\n" ++ ind ++ "\b\b\b\b}"
+showS (IfElse blocks) ind = first (head blocks) ++ concatMap ifelse (tail blocks)
+                            
   where
-    first (st, e, sl) = "If " ++ show e ++ " {\n" ++ showSL sl ind
-    ifelse (st, e, sl) = switch ++ " {\n" ++ showSL sl ind
+    first (st, e, sl) = "If " ++ show e ++ "\n" ++ showStOrNot st ind ++
+                        ind ++ "\b\b\b\b{\n" ++ showSL sl ind ++ "\n" ++ ind ++ "\b\b\b\b} "
+    ifelse (st, e, sl) = switch ++ "\n" ++ showStOrNot st ind ++
+                         ind ++ "\b\b\b\b{\n" ++ showSL sl ind ++ "\n" ++ ind ++ "\b\b\b\b}"
       where switch | e == (Int 1) = "Else"
                    | otherwise    = "Else If (" ++ show e ++ ")"
 
+showStOrNot st ind
+  | M.null st   = ""
+  | otherwise   = ind ++ "\b\b\b\b" ++ "Symbol Table: " ++ showST st ++ "\n"
 
 type DeclarationList = [Declaration]
 
@@ -110,7 +118,8 @@ data DeclarationAct
 instance Show DeclarationAct where
   show (Function st name args t sl) =
     "Function \"" ++ name ++ "\", args: " ++ showArg args ++
-    ", return type: " ++ show t ++ " {\n" ++
+    ", return type: " ++ show t ++
+    "\nSymbol table: " ++ showST st ++ "\n{\n" ++
     showSL sl "    " ++ "\n}\n"
 
 type FunctionArgs = [(String, MaliceType)]
@@ -147,9 +156,14 @@ instance Show Expr where
               
 type SymbolTable = Map String (MaliceType, Int)
 
+showST st = initEmpty $ initEmpty $ concatMap (\(s, (t, _)) -> show t ++ " \"" ++ s ++ "\", ") $ M.assocs st
+
 --Utils
 stringToType "number" = MaliceInt
 stringToType "letter" = MaliceChar
 stringToType "sentence" = MaliceString
 
 declName (Function _ s _ _ _) = s
+
+initEmpty [] = []
+initEmpty xs = init xs
