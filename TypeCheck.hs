@@ -105,7 +105,7 @@ declaration (pos, d) = dAct d >>= return . (,) pos
   
 dAct :: DeclarationAct -> TypeMonad DeclarationAct
 dAct f@(Function _ name args t sl) = do
-  pushST (M.fromList (map (\(n, t) -> (n, (t, 0))) args))
+  pushST (M.fromList (map (\(n, t) -> (n, (t, -1))) args))
   sl' <- statementList sl
   st <- popST
   return (Function st name args t sl)
@@ -132,9 +132,9 @@ sAct s@(Assign id e) = do
                          " to variable \"" ++ show id ++ "\" of type " ++
                          show t1 ++ ".")
 sAct s@(Declare t v) = do
-  declared <- lookupSymbol v
-  case declared of
-    Nothing -> (getST >>= (putST . M.insert v (t, 0))) >> return s
+  st <- getST
+  case M.lookup v st of
+    Nothing -> (getST >>= (putST . M.insert v (t, -1))) >> return s
     _       -> throwTypeError ("Trying to redeclare variable " ++ v ++ ".")
 sAct s@(Decrease id) = getIdentifier id >> return s
 sAct s@(Increase id) = getIdentifier id >> return s
