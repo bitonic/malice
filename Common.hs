@@ -24,13 +24,6 @@ data MaliceType = MaliceInt
                 | MaliceString
                 | MaliceArray MaliceType
                 | MaliceArraySize MaliceType Expr
-
-instance Show MaliceType where
-  show MaliceInt = "number"
-  show MaliceChar = "letter"
-  show MaliceString = "sentence"
-  show (MaliceArray t) = "spider " ++ show t
-  show (MaliceArraySize t _) = show (MaliceArray t)
                          
 instance Eq MaliceType where                      
   (MaliceArray t) == (MaliceArraySize t' _) = t == t'
@@ -46,11 +39,6 @@ type Position = (Int, Int)
 type FileName = String
 data AST = AST FileName DeclarationList
          deriving (Eq)
-                  
-instance Show AST where
-  show (AST fn dl) =
-    "File " ++ fn ++ ":\n\n" ++
-    showDL dl
 
 mainFunction = "_main"
 
@@ -74,6 +62,66 @@ data StatementAct
      | Until SymbolTable Expr StatementList
      | IfElse [(SymbolTable, Expr, StatementList)]
      deriving (Eq,Show)
+
+type DeclarationList = [Declaration]
+
+showDL dl = concatMap (\(_, d) -> show d ++ "\n") dl
+
+type DeclarationMap = Map String DeclarationAct
+
+type Declaration = (Position, DeclarationAct)
+
+data DeclarationAct
+     -- Symbol table, function name, arguments, return type, body
+     = Function SymbolTable String FunctionArgs MaliceType StatementList
+     deriving (Eq)
+
+type FunctionArgs = [(String, MaliceType)]
+
+data Identifier = SingleElement String -- String = name of the variable
+                | ArrayElement String Expr -- Name position
+                deriving (Eq)
+                        
+instance Show Identifier where
+  show (SingleElement s) = s
+  show (ArrayElement s e) = s ++ "[" ++ show e ++ "]"
+
+data Expr
+     = UnOp String Expr
+     | BinOp String Expr Expr
+     | FunctionCall String [Expr]
+     | Int Int32
+     | Char Char
+     | String String
+     | Id Identifier
+     deriving (Eq)
+              
+type SymbolTable = Map String (MaliceType, Int)
+
+--Utils
+stringToType "number" = MaliceInt
+stringToType "letter" = MaliceChar
+stringToType "sentence" = MaliceString
+
+declName (Function _ s _ _ _) = s
+
+initEmpty [] = []
+initEmpty xs = init xs
+
+-- Show functions.
+-- WARINING: UGLY CODE
+
+instance Show MaliceType where
+  show MaliceInt = "number"
+  show MaliceChar = "letter"
+  show MaliceString = "sentence"
+  show (MaliceArray t) = "spider " ++ show t
+  show (MaliceArraySize t _) = show (MaliceArray t)
+                  
+instance Show AST where
+  show (AST fn dl) =
+    "File " ++ fn ++ ":\n\n" ++
+    showDL dl
 
 showS (Assign id e) _ = show id ++ " = " ++ show e
 showS (Declare t n) _ = n ++ " is a " ++ show t
@@ -102,19 +150,6 @@ showStOrNot st ind
   | M.null st   = ""
   | otherwise   = ind ++ "\b\b\b\b" ++ "Symbol Table: " ++ showST st ++ "\n"
 
-type DeclarationList = [Declaration]
-
-showDL dl = concatMap (\(_, d) -> show d ++ "\n") dl
-
-type DeclarationMap = Map String DeclarationAct
-
-type Declaration = (Position, DeclarationAct)
-
-data DeclarationAct
-     -- Symbol table, function name, arguments, return type, body
-     = Function SymbolTable String FunctionArgs MaliceType StatementList
-     deriving (Eq)
-
 instance Show DeclarationAct where
   show (Function st name args t sl) =
     "Function \"" ++ name ++ "\", args: " ++ showArg args ++
@@ -122,31 +157,11 @@ instance Show DeclarationAct where
     "\nSymbol table: " ++ showST st ++ "\n{\n" ++
     showSL sl "    " ++ "\n}\n"
 
-type FunctionArgs = [(String, MaliceType)]
-
 showArg args = "(" ++ (removeComma $ concat [", " ++ show t ++ " " ++ n |
                                              (n, t) <- args]) ++ ")"
 
 removeComma [] = []
 removeComma s = tail $ tail s
-
-data Identifier = SingleElement String -- String = name of the variable
-                | ArrayElement String Expr -- Name position
-                deriving (Eq)
-                        
-instance Show Identifier where
-  show (SingleElement s) = s
-  show (ArrayElement s e) = s ++ "[" ++ show e ++ "]"
-
-data Expr
-     = UnOp String Expr
-     | BinOp String Expr Expr
-     | FunctionCall String [Expr]
-     | Int Int32
-     | Char Char
-     | String String
-     | Id Identifier
-     deriving (Eq)
 
 instance Show Expr where
   show (UnOp op e) = "(" ++ op ++ show e ++ ")"
@@ -156,17 +171,5 @@ instance Show Expr where
   show (Char c) = [c]
   show (String s) = s
   show (Id id) = show id
-              
-type SymbolTable = Map String (MaliceType, Int)
 
 showST st = (initEmpty $ initEmpty $ concatMap (\(s, (t, _)) -> show t ++ " \"" ++ s ++ "\", ") $ M.assocs st) ++ "."
-
---Utils
-stringToType "number" = MaliceInt
-stringToType "letter" = MaliceChar
-stringToType "sentence" = MaliceString
-
-declName (Function _ s _ _ _) = s
-
-initEmpty [] = []
-initEmpty xs = init xs
