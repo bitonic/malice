@@ -124,8 +124,11 @@ instance Show DeclarationAct where
 
 type FunctionArgs = [(String, MaliceType)]
 
-showArg args = "(" ++ (concat [show t ++ " " ++ n ++ ", " |
-                               (n, t) <- args]) ++ ")"
+showArg args = "(" ++ (removeComma $ concat [", " ++ show t ++ " " ++ n |
+                                             (n, t) <- args]) ++ ")"
+
+removeComma [] = []
+removeComma s = tail $ tail s
 
 data Identifier = SingleElement String -- String = name of the variable
                 | ArrayElement String Expr -- Name position
@@ -148,7 +151,7 @@ data Expr
 instance Show Expr where
   show (UnOp op e) = "(" ++ op ++ show e ++ ")"
   show (BinOp op e1 e2) = "(" ++ show e1 ++ " " ++ op ++ " " ++ show e2 ++ ")"
-  show (FunctionCall f args) = f ++ "(" ++ concatMap show args ++ ")"
+  show (FunctionCall f args) = f ++ "(" ++ removeComma (concatMap ((++) ", " . show) args) ++ ")"
   show (Int i) = show i
   show (Char c) = [c]
   show (String s) = s
@@ -156,7 +159,7 @@ instance Show Expr where
               
 type SymbolTable = Map String (MaliceType, Int)
 
-showST st = initEmpty $ initEmpty $ concatMap (\(s, (t, _)) -> show t ++ " \"" ++ s ++ "\", ") $ M.assocs st
+showST st = (initEmpty $ initEmpty $ concatMap (\(s, (t, _)) -> show t ++ " \"" ++ s ++ "\", ") $ M.assocs st) ++ "."
 
 --Utils
 stringToType "number" = MaliceInt
