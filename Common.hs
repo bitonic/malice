@@ -110,7 +110,7 @@ data DeclarationAct
 instance Show DeclarationAct where
   show (Function st name args t sl) =
     "Function \"" ++ name ++ "\", args: " ++ showArg args ++
-    ", return type: " ++ show t ++ "\nSymbol table: " ++ show st ++ "\n{\n" ++
+    ", return type: " ++ show t ++ "{\n" ++
     showSL sl "    " ++ "\n}\n"
 
 type FunctionArgs = [(String, MaliceType)]
