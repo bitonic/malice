@@ -55,6 +55,8 @@ mainFunction = "_main"
 
 type StatementList = [Statement]
 
+showSL sl ind = init $ concatMap (\(_, s) -> ind ++ showS s (ind ++ "    ") ++ "\n") sl
+
 type Statement = (Position, StatementAct)
 
 data StatementAct
@@ -70,7 +72,27 @@ data StatementAct
      -- Composite statements
      | Until SymbolTable Expr StatementList
      | IfElse [(SymbolTable, Expr, StatementList)]
-     deriving (Show, Eq)
+     deriving (Eq,Show)
+
+showS (Assign id e) _ = show id ++ " = " ++ show e
+showS (Declare t n) _ = n ++ " is a " ++ show t
+showS (Decrease id) _ = "Decrease " ++ show id
+showS (Increase id) _ = "Increase " ++ show id
+showS (Return e) _ = "Return " ++ show e
+showS (Print e) _ = "Print \"" ++ show e ++ "\""
+showS (Get id) _ = "Get " ++ show id
+showS (Comment _) _ = "---"
+showS (FunctionCallS e) _ = show e
+showS (Until st e sl) ind = "Until " ++ show e ++ " becomes true {\n" ++
+                            showSL sl ind ++ "\n}"
+showS (IfElse blocks) ind = first (head blocks) ++ concatMap ifelse (tail blocks) ++
+                            "\n    }"
+  where
+    first (st, e, sl) = "If " ++ show e ++ " {\n" ++ showSL sl ind
+    ifelse (st, e, sl) = switch ++ " {\n" ++ showSL sl ind
+      where switch | e == (Int 1) = "Else"
+                   | otherwise    = "Else If (" ++ show e ++ ")"
+
 
 type DeclarationList = [Declaration]
 
@@ -83,17 +105,26 @@ type Declaration = (Position, DeclarationAct)
 data DeclarationAct
      -- Symbol table, function name, arguments, return type, body
      = Function SymbolTable String FunctionArgs MaliceType StatementList
-     deriving (Eq, Show)
+     deriving (Eq)
+
+instance Show DeclarationAct where
+  show (Function st name args t sl) =
+    "Function \"" ++ name ++ "\", args: " ++ showArg args ++
+    ", return type: " ++ show t ++ "\nSymbol table: " ++ show st ++ "\n{\n" ++
+    showSL sl "    " ++ "\n}\n"
 
 type FunctionArgs = [(String, MaliceType)]
+
+showArg args = "(" ++ (concat [show t ++ " " ++ n ++ ", " |
+                               (n, t) <- args]) ++ ")"
 
 data Identifier = SingleElement String -- String = name of the variable
                 | ArrayElement String Expr -- Name position
                 deriving (Eq)
                         
 instance Show Identifier where
-  show (SingleElement s) = "variable " ++ s
-  show (ArrayElement s _) = "variable " ++ s ++ "'s piece"
+  show (SingleElement s) = s
+  show (ArrayElement s e) = s ++ "[" ++ show e ++ "]"
 
 data Expr
      = UnOp String Expr
@@ -103,7 +134,16 @@ data Expr
      | Char Char
      | String String
      | Id Identifier
-     deriving (Show, Eq)
+     deriving (Eq)
+
+instance Show Expr where
+  show (UnOp op e) = "(" ++ op ++ show e ++ ")"
+  show (BinOp op e1 e2) = "(" ++ show e1 ++ " " ++ op ++ " " ++ show e2 ++ ")"
+  show (FunctionCall f args) = f ++ "(" ++ concatMap show args ++ ")"
+  show (Int i) = show i
+  show (Char c) = [c]
+  show (String s) = s
+  show (Id id) = show id
               
 type SymbolTable = Map String MaliceType
 

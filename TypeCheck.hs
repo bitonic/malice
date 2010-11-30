@@ -128,7 +128,8 @@ sAct s@(Assign id e) = do
   if t1 == t2
     then return s
     else throwTypeError ("Trying to assign a value of type " ++ show t2 ++
-                         " to \"" ++ show id ++ "\" of type " ++ show t1 ++ ".")
+                         " to variable \"" ++ show id ++ "\" of type " ++
+                         show t1 ++ ".")
 sAct s@(Declare t v) = do
   declared <- lookupSymbol v
   case declared of
