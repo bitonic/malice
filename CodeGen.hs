@@ -1,12 +1,13 @@
 module CodeGen
        (
-         maliceCodeGen,
+--         maliceCodeGen,
+         codeGenDL,
+         codeGenAST,
        ) where
 
 import Common
 import LLGen
-import Parser
-import qualified Data.Map as M
+--import qualified Data.Map as M
 
 --maxreg :: Register
 --maxreg = 4
@@ -107,6 +108,8 @@ codeGenLine (LLMod _ _)
   = error "codeGenLine: Impossible operand combination for LLMod on i386"
 codeGenLine (LLNot _)
   = error "codeGenLine: Impossible operand combination for LLNot"
+codeGenLine (LLSrcLine i)
+  = "; Source line " ++ (show i) ++ "\n"
 --codeGenLine _
 --  = error "codeGenLine: Unknown operator/operand combination"
 
@@ -123,12 +126,11 @@ asmPrologue = "\n"
               ++ "global _start ; export the main function\n"
               ++ "\n"
               ++ "_start:\n"
-              ++ "call main\n"
+              ++ "call " ++ mainFunction ++ "\n"
               ++ "mov ebx, eax\n"
               ++ "mov eax, 1\n"
               ++ "int 0x80\n"
               ++ "\n\n"
-              ++ "main:\n"
 
 {-
 llAllocLocVars :: StatementList -> LLcmd
@@ -167,8 +169,34 @@ codeGenGlobVar :: Variable -> MaliceType -> String -> String
 codeGenGlobVar v _ rest
   = v ++ " DD 0\n" ++ rest
 
-maliceCodeGen :: StatementList -> VarTypes -> String
-maliceCodeGen sl vt = asmPrologue ++ codeGenLL llsl ++ globs
-  where
-    llsl = maliceLL sl
-    globs = "\n\nsection .data ; global variables go here\n" ++ M.foldWithKey codeGenGlobVar "" vt
+--maliceCodeGen :: StatementList -> VarTypes -> String
+--maliceCodeGen sl vt = asmPrologue ++ codeGenLL llsl ++ globs
+--  where
+--    llsl = maliceLL sl
+--    globs = "\n\nsection .data ; global variables go here\n" ++ M.foldWithKey codeGenGlobVar "" vt
+
+
+codeGenDA :: DeclarationAct -> String
+--codeGenDA (Function symtab name arglist rettype body)
+codeGenDA (Function _ name _ _ body)
+  = "\n"
+    ++ name ++ ":\n\n"
+    ++ codeGenLL (maliceLL body)
+    ++ "\n"
+    ++ "end_" ++ name ++ ":\n"
+    ++ "ret"
+    ++ "\n"
+
+codeGenD :: Declaration -> String
+codeGenD (_, da) = codeGenDA da
+
+
+codeGenDL :: DeclarationList -> String
+codeGenDL dl
+  = asmPrologue
+    ++ concat (map codeGenD dl)
+    ++ "\n"
+
+codeGenAST :: AST -> String
+codeGenAST (AST _ dl) = codeGenDL dl
+

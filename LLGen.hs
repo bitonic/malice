@@ -52,6 +52,7 @@ data LLcmd
 --     | LLPop Register
      | LLPush LLParam
      | LLPop LLParam
+     | LLSrcLine Immediate
      deriving (Show, Eq)
 
 
@@ -153,9 +154,9 @@ llS (Return exp1) destreg
 
 llSA :: Statement -> Register -> [LLcmd]
 llSA s destreg
-  = llS sa destreg
+  = (LLSrcLine $ fromIntegral line) : (llS sa destreg)
   where
-    (_, sa) = s
+    ((line, _), sa) = s
 
 llSL :: StatementList -> Register -> [LLcmd]
 llSL ss destreg
