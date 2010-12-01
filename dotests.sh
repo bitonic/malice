@@ -1,12 +1,12 @@
 #!/bin/bash
 
 OUTPUTDIR=autotest-results
-REMOVEASM=no
+REMOVEASM=yes
 
 # 0: Only failures in single tests
 # 1: + summaries
 # 2: + successes
-DEBUGLEVEL=0
+DEBUGLEVEL=1
 
 # 0: No warnings
 # 1: Output on stderr
@@ -63,7 +63,7 @@ function ma_testsingle
 	fi
 	
 	# Check compiler stdout
-	if [ "$(<"$OUTPUTDIR"/"$BASENAME".tco)" != "Done." ]
+	if [ "$(<"$OUTPUTDIR"/"$BASENAME".tco)" != "Done." -a "$(<"$OUTPUTDIR"/"$BASENAME".tco)" != "" ]
 	then
 		if [ "$(<"$OUTPUTDIR"/"$BASENAME".tcr)" = 0 ]
 		then
@@ -99,7 +99,7 @@ function ma_testsingle
 	fi
 	
 	# If an executable was produced
-	if [ -x "$OUTPUTDIR"/"$BASENAME" ]
+	if [ -x "$OUTPUTDIR"/"$BASENAME" -a $TESTFAILED = 0 ]
 	then
 		for tn in "$BASEPATH"*.retvalue
 		do

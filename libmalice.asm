@@ -2,6 +2,8 @@
 
 ; Code for Linux on IA-32:
 
+extern _main
+
 section .text ; start of code
 global _start ; export the main function
 

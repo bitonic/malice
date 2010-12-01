@@ -3,38 +3,56 @@
 INPUT="$1"
 OUTPUT="$2"
 
-if [ $# = 2 ]; then
-    if [ -e "$INPUT" ]; then
-        ./malice2asm "$INPUT" "$OUTPUT"
-        
-        if [ -e "$OUTPUT.asm" ]; then
-            nasm -f elf "$OUTPUT.asm"
-            
-            if [ $? = 0 ]; then
-                ld -o "$OUTPUT" "$OUTPUT.o"
-
-                if [ $? = 0 ]; then
-                    echo "Done."
-                else
-                    echo "Failed to link."
-                    exit 1
-                fi
-                
-                rm -f "$OUTPUT.o"
-            else
-                echo "Failed to assemble."
-                exit 1
-            fi
-            
-#            rm -f "$OUTPUT.asm"
-        else
-            echo "Failed to compile."
-            exit 1
-        fi
-    else
-        echo "Could not find file $INPUT."
-        return 1;
-    fi
+if [ $# != 2 ]; then
+	echo "Usage: ./compile input_file output_file"
 else
-    echo "Usage: ./compile input_file output_file"
+	# Perform some sanity checks
+	#if [ ! -e "libmalice.asm" ]; then
+	#	echo "Error: libmalice.asm not found."
+	#	exit 1
+	#fi
+	if [ ! -e "$INPUT" ]; then
+		echo "Could not find source file $INPUT."
+		exit 1
+	fi
+	
+	# Assemble the support library
+	# Now done in the Makefile
+	#nasm -f elf "libmalice.asm"
+	#if [ $? != 0 ]; then
+	#	echo "Error: Failed to assemble libmalice."
+	#fi
+	
+	# Compile the MAlice program
+   ./malice2asm "$INPUT" "$OUTPUT"
+	if [ $? != 0 ]; then
+		echo "Error: Failed to compile the program."
+		exit 2
+	fi
+
+	# Another sanity check
+	if [ ! -e "$OUTPUT.asm" ]; then
+		echo "Error: The compiler succeeded but there is no .asm file!?"
+		exit 2
+	fi
+
+	# Assemble the MAlice program
+	nasm -f elf "$OUTPUT.asm"
+	if [ $? != 0 ]; then
+		echo "Error: Failed to assemble the program."
+		exit 3
+	fi
+	
+	# Link the program
+	ld -o "$OUTPUT" "$OUTPUT.o" libmalice.o
+	if [ $? != 0 ]; then
+		echo "Error: Failed to link the program."
+		exit 4
+	fi
+	
+#	echo "Done."
+	
+	# Clean up
+	rm -f "$OUTPUT.o"
+#	rm -f "$OUTPUT.asm"
 fi
