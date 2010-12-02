@@ -25,6 +25,7 @@ type Immediate = Int32
 data LLParam = PVar Variable
              | PReg Register
              | PImm Immediate
+             | PStr String
              deriving (Show, Eq)
 
 
@@ -53,6 +54,9 @@ data LLcmd
      | LLPush LLParam
      | LLPop LLParam
      | LLSrcLine Immediate
+     | LLPrint LLParam
+     | LLGet Variable
+     | LLCall String
      deriving (Show, Eq)
 
 
@@ -110,6 +114,15 @@ llExp (Char c) destreg
   = [LLCp (PReg destreg) (PImm (truncates32tou8 $ fromIntegral (ord c) :: Immediate))]
 llExp (Id (SingleElement var)) destreg
   = [LLCp (PReg destreg) (PVar var)]
+llExp (FunctionCall fn args) destreg
+  = (if destreg == 0 then [] else [LLPush (PReg 0)])
+    ++ ( concat $ map (flip (++) [LLPush (PReg destreg)]) $ map (flip (llExp) destreg) args )
+    ++ [LLCall fn, LLSpAdd $ fromIntegral (4 * length args)]
+    ++ (if destreg == 0 then [] else [LLCp (PReg destreg) (PReg 0), LLPop (PReg 0)])
+llExp (String _) _
+  = error "Implement EXP String"
+llExp (Id (ArrayElement _ _)) _
+  = error "Implement EXP ArrayElement"
 
 
 {-
@@ -137,24 +150,48 @@ llExp (Var var) destreg
 -}
 
 
-llSA :: StatementAct -> Register -> [LLcmd]
-llSA (Declare _ _) _
+llSA :: StatementAct -> [LLcmd]
+llSA (Declare _ _)
   = []
-llSA (Assign (SingleElement var) (Int imm)) _
+llSA (Assign (SingleElement var) (Int imm))
   = [LLCp (PVar var) (PImm imm)]
-llSA (Assign (SingleElement var) exp1) destreg
-  = (llExp (optimiseExpr exp1) destreg) ++ [(LLCp (PVar var) (PReg destreg))]
-llSA (Decrease (SingleElement var)) destreg
-  = [(LLCp (PReg destreg) (PVar var)), (LLDec (PReg destreg)), (LLCp (PVar var) (PReg destreg))]
-llSA (Increase (SingleElement var)) destreg
-  = [(LLCp (PReg destreg) (PVar var)), (LLInc (PReg destreg)), (LLCp (PVar var) (PReg destreg))]
-llSA (Return exp1) destreg
-  = (llExp (optimiseExpr exp1) destreg) ++ [LLRet]
+llSA (Assign (SingleElement var) exp1)
+  = (llExp (optimiseExpr exp1) 0) ++ [(LLCp (PVar var) (PReg 0))]
+llSA (Assign (ArrayElement _ _) _)
+  = error "Implement Assign ArrayElement"
+llSA (Decrease (SingleElement var))
+  = [(LLCp (PReg 0) (PVar var)), (LLDec (PReg 0)), (LLCp (PVar var) (PReg 0))]
+llSA (Decrease (ArrayElement _ _))
+  = error "Implement Decrease ArrayElement"
+llSA (Increase (SingleElement var))
+  = [(LLCp (PReg 0) (PVar var)), (LLInc (PReg 0)), (LLCp (PVar var) (PReg 0))]
+llSA (Increase (ArrayElement _ _))
+  = error "Implement Increase ArrayElement"
+llSA (Return exp1)
+  = (llExp (optimiseExpr exp1) 0) ++ [LLRet]
+llSA (Print (String str))
+  = [LLPrint (PStr str)]
+llSA (Print exp1)
+  = (llExp (optimiseExpr exp1) 0) ++ error "Implement LLPrint"
+llSA (Get (SingleElement var))
+  = (llExp (FunctionCall "_readint" []) 0) ++ [LLCp (PVar var) (PReg 0)]
+llSA (Get (ArrayElement _ _))
+  = error "Cannot read a whole array"
+llSA (Comment _)
+  = []
+llSA (FunctionCallS fc@(FunctionCall _ _))
+  = llExp fc 0
+llSA (FunctionCallS _)
+  = error "Cannot call an expression that is not a FunctionCall"
+llSA (Until _ _ _)
+  = error "Implement LLUntil"
+llSA (IfElse _)
+  = error "Implement LLIfElse"
 
 
 llS :: Statement -> [LLcmd]
 llS s
-  = (LLSrcLine $ fromIntegral line) : (llSA sa 0)
+  = (LLSrcLine $ fromIntegral line) : (llSA sa)
   where
     ((line, _), sa) = s
 

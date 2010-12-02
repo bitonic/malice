@@ -55,8 +55,8 @@ function ma_testsingle
 		if [ "$(<"$OUTPUTDIR"/"$BASENAME".tcr)" = 0 ]
 		then
 			out_warn 1 "$BASENAME: Compiler stderr"
-		else
-			rm "$OUTPUTDIR"/"$BASENAME".tce
+		#else
+			#rm "$OUTPUTDIR"/"$BASENAME".tce
 		fi
 	else
 		rm "$OUTPUTDIR"/"$BASENAME".tce
@@ -68,8 +68,8 @@ function ma_testsingle
 		if [ "$(<"$OUTPUTDIR"/"$BASENAME".tcr)" = 0 ]
 		then
 			out_warn 1 "$BASENAME: Compiler stdout"
-		else
-			rm "$OUTPUTDIR"/"$BASENAME".tco
+		#else
+		#	rm "$OUTPUTDIR"/"$BASENAME".tco
 		fi
 	else
 		rm "$OUTPUTDIR"/"$BASENAME".tco
@@ -185,7 +185,7 @@ function ma_testsingle
 		fi
 		rm -f "$OUTPUTDIR/$BASENAME.alice"
 	else
-		out_fail 1 "$BASENAME"
+		#out_fail 1 "$BASENAME"
 		cp "$FULLPATH" "$OUTPUTDIR/"
 	fi
 	return $TESTFAILED
@@ -197,7 +197,7 @@ function out_ok
 {
 	if [ "$DEBUGLEVEL" -ge "$1" ]
 	then
-		echo -e "${TB}${TW}[${TG}  OK  ${TW}]${TN}: $2"
+		echo -e "${TB}${TW}[${TG}  OK  ${TW}]${TN} $2"
 	fi
 }
 
@@ -206,7 +206,7 @@ function out_fail
 {
 	if [ "$DEBUGLEVEL" -ge "$1" ]
 	then
-		echo -e "${TB}${TW}[${TR}FAILED${TW}]${TN}: $2"
+		echo -e "${TB}${TW}[${TR}FAILED${TW}]${TN} $2"
 	fi
 }
 
@@ -215,7 +215,7 @@ function out_warn
 {
 	if [ "$WARNINGLEVEL" -ge "$1" ]
 	then
-		echo -e "${TB}${TW}[${TY} WARN ${TW}]${TN}: $2"
+		echo -e "${TB}${TW}[${TY} WARN ${TW}]${TN} $2"
 	fi
 }
 

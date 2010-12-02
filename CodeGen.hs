@@ -139,6 +139,10 @@ codeGenLine _ (LLNot _)
   = error "codeGenLine: Impossible operand combination for LLNot"
 codeGenLine _ (LLSrcLine i)
   = "; Source line " ++ (show i) ++ "\n"
+codeGenLine _ (LLPrint (PStr str))
+  = error "Implement CG Print"
+codeGenLine _ (LLCall fn)
+  = "call " ++ fn ++ "\n"
 --codeGenLine _
 --  = error "codeGenLine: Unknown operator/operand combination"
 

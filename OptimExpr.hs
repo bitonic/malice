@@ -26,6 +26,11 @@ exprIntermeds (Char _)
   = 0
 exprIntermeds (Id _)
   = 0
+exprIntermeds (String _)
+  = 0
+exprIntermeds (FunctionCall _ _)
+  = 1337
+
 
 flipBinOpArgs :: Expr -> Expr
 flipBinOpArgs (BinOp op exp1 exp2)
