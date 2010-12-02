@@ -6,6 +6,7 @@ module CodeGen
        ) where
 
 import Common
+import CGCommon
 import LLGen
 import qualified Data.Map as M
 {-
@@ -25,14 +26,6 @@ putFunName n = do
   put (n, m, i) 
 -}
 
---type VarMap = [(Variable, String)]
-type ScopeInfo = (String, SymbolTable)
-
-getFunName :: ScopeInfo -> String
-getFunName (fn, _) = fn
-
-getSymTab :: ScopeInfo -> SymbolTable
-getSymTab (_, symtab) = symtab
 
 
 --maxreg :: Register

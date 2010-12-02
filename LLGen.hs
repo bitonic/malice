@@ -1,22 +1,15 @@
 module LLGen
        (
-         Operand, Register, Variable, Immediate, LLcmd (..), LLParam (..),
+         LLcmd (..), LLParam (..),
          maliceLL,
        ) where
 
 import Common
+import CGCommon
 import OptimExpr
-import Data.Int (Int32)
 import Data.Bits
 import Data.Char
 
-
-type Operand = String
-type Register = Int
-type Variable = String
-type Immediate = Int32
-
---type VarMap = [(Variable, String)]
 
 --type VarOffset = Int
 --data VarValue = Imm Immediate
