@@ -1,8 +1,7 @@
 module CodeGen
        (
---         maliceCodeGen,
-         codeGenDL,
-         codeGenAST,
+         cgDL,
+         cgAST,
        ) where
 
 import Common
@@ -55,16 +54,16 @@ codeLLParam _ (PImm i)
   = "dword " ++ (show i)
 
 
-codeGenLine :: ScopeInfo -> LLcmd -> String
-codeGenLine si (LLCp p1 p2)
+cgLine :: ScopeInfo -> LLcmd -> String
+cgLine si (LLCp p1 p2)
   = "mov " ++ (codeLLParam si p1) ++ ", " ++ (codeLLParam si p2) ++ "\n"
-codeGenLine si (LLAdd p1 p2)
+cgLine si (LLAdd p1 p2)
   = "add " ++ (codeLLParam si p1) ++ ", " ++ (codeLLParam si p2) ++ "\n"
-codeGenLine si (LLSub p1 p2)
+cgLine si (LLSub p1 p2)
   = "sub " ++ (codeLLParam si p1) ++ ", " ++ (codeLLParam si p2) ++ "\n"
-codeGenLine si (LLMul p1 p2)
+cgLine si (LLMul p1 p2)
   = "imul " ++ (codeLLParam si p1) ++ ", " ++ (codeLLParam si p2) ++ "\n"
-codeGenLine _ (LLDiv (PReg r1) (PReg r2))
+cgLine _ (LLDiv (PReg r1) (PReg r2))
 -- WARNING: If r1 == 3 and r2 == 0 we will have loss of information...
 -- To be fixed later with register allocation.
   = "push eax\n"
@@ -75,7 +74,7 @@ codeGenLine _ (LLDiv (PReg r1) (PReg r2))
     ++ "mov " ++ (registerName r1) ++ ", eax\n"
     ++ (if (r1 /= 3) then "pop edx\n" else "add esp, 4\n")
     ++ (if (r1 /= 0) then "pop eax\n" else "add esp, 4\n")
-codeGenLine _ (LLMod (PReg r1) (PReg r2))
+cgLine _ (LLMod (PReg r1) (PReg r2))
 -- WARNING: If r1 == 3 and r2 == 0 we will have loss of information...
 -- To be fixed later with register allocation.
   = "push eax\n"
@@ -86,74 +85,74 @@ codeGenLine _ (LLMod (PReg r1) (PReg r2))
     ++ "mov " ++ (registerName r1) ++ ", edx\n"
     ++ (if (r1 /= 3) then "pop edx\n" else "add esp, 4\n")
     ++ (if (r1 /= 0) then "pop eax\n" else "add esp, 4\n")
-codeGenLine si (LLDiv (PReg r1) (PImm imm))
-  = codeGenLLsimple si [
+cgLine si (LLDiv (PReg r1) (PImm imm))
+  = cgLLsimple si [
       (LLCp (PReg (succ r1)) (PImm imm)),
       (LLDiv (PReg r1) (PReg (succ r1))) ]
-codeGenLine si (LLMod (PReg r1) (PImm imm))
-  = codeGenLLsimple si [
+cgLine si (LLMod (PReg r1) (PImm imm))
+  = cgLLsimple si [
       (LLCp (PReg (succ r1)) (PImm imm)),
       (LLMod (PReg r1) (PReg (succ r1))) ]
-codeGenLine si (LLAnd p1 p2)
+cgLine si (LLAnd p1 p2)
   = "and " ++ (codeLLParam si p1) ++ ", " ++ (codeLLParam si p2) ++ "\n"
-codeGenLine si (LLOr p1 p2)
+cgLine si (LLOr p1 p2)
   = "or " ++ (codeLLParam si p1) ++ ", " ++ (codeLLParam si p2) ++ "\n"
-codeGenLine si (LLXOr p1 p2)
+cgLine si (LLXOr p1 p2)
   = "xor " ++ (codeLLParam si p1) ++ ", " ++ (codeLLParam si p2) ++ "\n"
-codeGenLine si (LLDec p1)
+cgLine si (LLDec p1)
   = "dec " ++ (codeLLParam si p1) ++ "\n"
-codeGenLine si (LLInc p1)
+cgLine si (LLInc p1)
   = "inc " ++ (codeLLParam si p1) ++ "\n"
-codeGenLine si (LLNot (PReg r))
-  = codeGenLLsimple si [
+cgLine si (LLNot (PReg r))
+  = cgLLsimple si [
       (LLCp (PReg (succ r)) (PReg r)),
       (LLCp (PReg r) (PImm 255)),
       (LLSub (PReg r) (PReg (succ r))) ]
---codeGenLine (LLNot (PVar v))
---  = codeGenLL [
+--cgLine (LLNot (PVar v))
+--  = cgLL [
 --      (LLCp (PReg r) (PImm 255)),
 --      (LLSub (PReg r) (PVar v)),
 --      (LLCp (PVar v) (PReg r)) ]
-codeGenLine _ (LLRet)
+cgLine _ (LLRet)
   = "ret\n"
-codeGenLine _ (LLSpSub imm)
+cgLine _ (LLSpSub imm)
   = "sub esp, " ++ (show imm) ++ "\n"
-codeGenLine _ (LLSpAdd imm)
+cgLine _ (LLSpAdd imm)
   = "add esp, " ++ (show imm) ++ "\n"
-codeGenLine si (LLPush p1)
+cgLine si (LLPush p1)
   = "push " ++ (codeLLParam si p1) ++ "\n"
-codeGenLine si (LLPop p1)
+cgLine si (LLPop p1)
   = "pop " ++ (codeLLParam si p1) ++ "\n"
-codeGenLine _ (LLDiv _ _)
-  = error "codeGenLine: Impossible operand combination for LLDiv on i386"
-codeGenLine _ (LLMod _ _)
-  = error "codeGenLine: Impossible operand combination for LLMod on i386"
-codeGenLine _ (LLNot _)
-  = error "codeGenLine: Impossible operand combination for LLNot"
-codeGenLine _ (LLSrcLine i)
+cgLine _ (LLDiv _ _)
+  = error "cgLine: Impossible operand combination for LLDiv on i386"
+cgLine _ (LLMod _ _)
+  = error "cgLine: Impossible operand combination for LLMod on i386"
+cgLine _ (LLNot _)
+  = error "cgLine: Impossible operand combination for LLNot"
+cgLine _ (LLSrcLine i)
   = "; Source line " ++ (show i) ++ "\n"
-codeGenLine _ (LLPrint (PStr str))
+cgLine _ (LLPrint (PStr str))
   = error "Implement CG Print"
-codeGenLine _ (LLCall fn)
+cgLine _ (LLCall fn)
   = "call " ++ fn ++ "\n"
---codeGenLine _
---  = error "codeGenLine: Unknown operator/operand combination"
+--cgLine _
+--  = error "cgLine: Unknown operator/operand combination"
 
 
-codeGenLLsimple :: ScopeInfo -> [LLcmd] -> String
-codeGenLLsimple si = concat . map (codeGenLine si)
+cgLLsimple :: ScopeInfo -> [LLcmd] -> String
+cgLLsimple si = concat . map (cgLine si)
 
 
 
 --            body                    asm
-codeGenLL :: ScopeInfo -> [LLcmd] -> String
-codeGenLL si (LLRet : ls)
+cgLL :: ScopeInfo -> [LLcmd] -> String
+cgLL si (LLRet : ls)
   = "jmp end_" ++ (getFunName si) ++ "\n"
-    ++ codeGenLL si ls
-codeGenLL si (l:ls)
-  = codeGenLine si l
-    ++ codeGenLL si ls
-codeGenLL _ []
+    ++ cgLL si ls
+cgLL si (l:ls)
+  = cgLine si l
+    ++ cgLL si ls
+cgLL _ []
   = "mov eax, 0\n"
 
 
@@ -166,10 +165,10 @@ asmPrologue = "\n"
 
 
 --maliceCodeGen :: StatementList -> VarTypes -> String
---maliceCodeGen sl vt = asmPrologue ++ codeGenLL llsl ++ globs
+--maliceCodeGen sl vt = asmPrologue ++ cgLL llsl ++ globs
 --  where
 --    llsl = maliceLL sl
---    globs = "\n\nsection .data ; global variables go here\n" ++ M.foldWithKey codeGenGlobVar "" vt
+--    globs = "\n\nsection .data ; global variables go here\n" ++ M.foldWithKey cgGlobVar "" vt
 
 prepSymTabOffsets' :: Int -> [(Variable, (MaliceType, Int))] ->  [(Variable, (MaliceType, Int))]
 prepSymTabOffsets' _ []
@@ -181,41 +180,42 @@ prepSymTabOffsets :: SymbolTable -> SymbolTable
 prepSymTabOffsets = M.fromList . (prepSymTabOffsets' 0) . M.toAscList
 
 
-codeGenDA :: DeclarationAct -> String
---codeGenDA (Function symtab name arglist rettype body)
-codeGenDA (Function symtab name _ _ body)
+
+cgDA :: DeclarationAct -> String
+--cgDA (Function symtab name arglist rettype body)
+cgDA (Function symtab name _ _ body)
   = "\n"
     ++ "global " ++ name ++ "\n"
     ++ name ++ ":\n\n"
-    ++ codeGenLLsimple si llSave
+    ++ cgLLsimple si llSave
     ++ "push ebp\n"
     ++ "mov ebp, esp\n"
-    ++ codeGenLine si llAlloc
+    ++ cgLine si llAlloc
     ++ "\n"
-    ++ codeGenLL si (maliceLL body)
+    ++ cgLL si (llSL si body)
     ++ "\n"
     ++ "end_" ++ name ++ ":\n"
-    ++ codeGenLine si llDealloc
+    ++ cgLine si llDealloc
     ++ "pop ebp\n" 
-    ++ codeGenLLsimple si llRestore
+    ++ cgLLsimple si llRestore
     ++ "ret\n"
   where
     llAlloc = (LLSpSub $ fromIntegral (4 * (M.size symtab)))
     llDealloc = (LLSpAdd $ fromIntegral (4 * (M.size symtab)))
     llSave = [LLPush (PReg 1)]
     llRestore = [LLPop (PReg 1)]
-    si = (name, (prepSymTabOffsets symtab))
+    si = (name, (prepSymTabOffsets symtab), [])
 
-codeGenD :: Declaration -> String
-codeGenD (_, da) = codeGenDA da
+cgD :: Declaration -> String
+cgD (_, da) = cgDA da
 
 
-codeGenDL :: DeclarationList -> String
-codeGenDL dl
+cgDL :: DeclarationList -> String
+cgDL dl
   = asmPrologue
-    ++ concat (map codeGenD dl)
+    ++ concat (map cgD dl)
     ++ "\n"
 
-codeGenAST :: AST -> String
-codeGenAST (AST _ dl) = codeGenDL dl
+cgAST :: AST -> String
+cgAST (AST _ dl) = cgDL dl
 
