@@ -184,9 +184,10 @@ llS s = do
   where
     ((line, _), sa) = s
 
-llSL :: ScopeInfo -> StatementList -> [LLcmd]
-llSL si ss
-  = ll
-  where
-    ll = concat $ map (((flip evalState) si).llS) ss
+llSL :: StatementList -> SIM [LLcmd]
+llSL ss = do
+  l <- mapM llS ss
+  return $ concat l
+--  si <- get
+--  return $ concat $ map (((flip evalState) si).llS) ss
 
