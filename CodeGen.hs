@@ -46,7 +46,7 @@ cgLLParam (PVar v) = do
   sym <- lookupSym v
   return $ case sym of
     Just (_, vid) -> "[ebp-" ++ (show (vid * 4)) ++ "]"
-    Nothing -> error "Variable " ++ v ++ " has not been defined (yet)."
+    Nothing -> error $ "Variable " ++ v ++ " has not been defined (yet)."
 cgLLParam (PReg r)
   = return $ registerName r
 cgLLParam (PImm i)
@@ -62,6 +62,20 @@ cgLL2Param p1 p2 = do
   c1 <- cgLLParam p1
   c2 <- cgLLParam p2
   return $ c1 ++ ", " ++ c2
+
+cgCmp :: String -> LLParam -> LLParam -> LLParam -> SIM String
+cgCmp jt pdest p1 p2 = do
+  d <- cgLLParam pdest
+  parms <- cgLL2Param p1 p2
+  lbl1 <- uniqLabel
+  lbl2 <- uniqLabel
+  return $ "cmp " ++ parms ++ "\n"
+    ++ jt ++ " " ++ lbl1 ++ "\n"
+    ++ "mov " ++ d ++ ", dword 0\n"
+    ++ "jmp " ++ lbl2 ++ "\n"
+    ++ lbl1 ++ ":\n"
+    ++ "mov " ++ d ++ ", dword 1\n"
+    ++ lbl2 ++ ":\n"
 
 
 cgLine :: LLcmd -> SIM String
@@ -135,6 +149,46 @@ cgLine (LLNot (PReg r)) = do
 --      (LLCp (PReg r) (PImm 255)),
 --      (LLSub (PReg r) (PVar v)),
 --      (LLCp (PVar v) (PReg r)) ]
+cgLine (LLClt p1 p2) = do
+  c <- cgCmp "jl" p1 p1 p2
+  return $ c
+cgLine (LLCgt p1 p2) = do
+  c <- cgCmp "jg" p1 p1 p2
+  return $ c
+cgLine (LLCle p1 p2) = do
+  c <- cgCmp "jle" p1 p1 p2
+  return $ c
+cgLine (LLCge p1 p2) = do
+  c <- cgCmp "jge" p1 p1 p2
+  return $ c
+cgLine (LLCeq p1 p2) = do
+  c <- cgCmp "je" p1 p1 p2
+  return $ c
+cgLine (LLCneq p1 p2) = do
+  c <- cgCmp "jne" p1 p1 p2
+  return $ c
+cgLine (LLCand p1 p2) = do
+  parm1 <- cgLLParam p1
+  parm2 <- cgLLParam p2
+  lbl1 <- uniqLabel
+  return $ "cmp " ++ parm1 ++ ", dword 0\n"
+    ++ "je " ++ lbl1 ++ "\n"
+    ++ "cmp " ++ parm2 ++ ", dword 0\n"
+    ++ "je " ++ lbl1 ++ "\n"
+    ++ "mov " ++ parm1 ++ ", dword 0\n"
+    ++ lbl1 ++ ":\n"
+cgLine (LLCor p1 p2) = do
+  parm1 <- cgLLParam p1
+  parm2 <- cgLLParam p2
+  lbl1 <- uniqLabel
+  lbl2 <- uniqLabel
+  return $ "cmp " ++ parm1 ++ ", dword 0\n"
+    ++ "jne " ++ lbl1 ++ "\n"
+    ++ "cmp " ++ parm2 ++ ", dword 0\n"
+    ++ "jne " ++ lbl2 ++ "\n"
+    ++ lbl1 ++ ":\n"
+    ++ "mov " ++ parm1 ++ ", dword 0\n"
+    ++ lbl2 ++ ":\n"
 cgLine (LLRet) = do
   fn <- getFuncName
   return $ "jmp end_" ++ fn ++ "\n"
@@ -161,6 +215,21 @@ cgLine (LLCall fn)
   = return $ "call " ++ fn ++ "\n"
 cgLine (LLLabel l)
   = return $ l ++ ":\n"
+cgLine (LLScope symtab ll) = do
+  pushSymTab symtab
+  c <- cgLL ll
+  _ <- popSymTab
+  return c
+cgLine (LLJmp l)
+  = return $ "jmp " ++ l ++ "\n"
+cgLine (LLJmpZ l p1) = do
+  parms <- cgLL2Param p1 p1
+  return $ "test " ++ parms ++ "\n"
+    ++ "je " ++ l ++ "\n"
+cgLine (LLJmpNZ l p1) = do
+  parms <- cgLL2Param p1 p1
+  return $ "test " ++ parms ++ "\n"
+    ++ "jne " ++ l ++ "\n"
 --cgLine _
 --  = error "cgLine: Unknown operator/operand combination"
 
@@ -181,27 +250,16 @@ asmPrologue = "\n"
 
 
 
-prepSymTabOffsets' :: Int -> [(Variable, (MaliceType, Int))] ->  [(Variable, (MaliceType, Int))]
-prepSymTabOffsets' _ []
-  = []
-prepSymTabOffsets' num ( (v, (t, _)) : ss )
-  = (v, (t, num)) : prepSymTabOffsets' (succ num) ss
-
-prepSymTabOffsets :: SymbolTable -> SymbolTable
-prepSymTabOffsets = M.fromList . (prepSymTabOffsets' 0) . M.toAscList
-
-
 
 cgDA :: DeclarationAct -> SIM String
 --cgDA (Function symtab name arglist rettype body)
 cgDA (Function symtab name _ _ body) = do
   putFuncName name
-  newsyt <- return $ (prepSymTabOffsets symtab)
-  pushSymTab newsyt
-  lBody <- llSL body -- have to do this first to calculate memory need
+  pushSymTab symtab
+  lBody <- llSL body
+  cBody <- cgLL lBody -- have to do this first to calculate memory need
   cSave <- cgLL llSave
   cAlloc <- cgLine llAlloc
-  cBody <- cgLL lBody
   cDealloc  <- cgLine llDealloc
   cRestore <- cgLL llRestore
   _ <- popSymTab

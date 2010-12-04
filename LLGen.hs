@@ -59,6 +59,10 @@ data LLcmd
      | LLSrcLine Immediate
      | LLCall String
      | LLLabel Label
+     | LLScope SymbolTable [LLcmd]
+     | LLJmp Label
+     | LLJmpZ Label LLParam
+     | LLJmpNZ Label LLParam
      deriving (Show, Eq)
 
 
@@ -142,56 +146,67 @@ llExp (Id (ArrayElement _ _)) _
 
 
 
-llSA' :: StatementAct -> SIM [LLcmd]
-llSA' (Declare _ _)
+llSA :: StatementAct -> SIM [LLcmd]
+llSA (Declare _ _)
   = return $ []
-llSA' (Assign (SingleElement var) (Int imm))
+llSA (Assign (SingleElement var) (Int imm))
   = return $ [LLCp (PVar var) (PImm imm)]
-llSA' (Assign (SingleElement var) exp1) = do
+llSA (Assign (SingleElement var) exp1) = do
   e1 <- (llExp (optimiseExpr exp1) 0)
   return $ e1 ++ [(LLCp (PVar var) (PReg 0))]
-llSA' (Assign (ArrayElement _ _) _)
+llSA (Assign (ArrayElement _ _) _)
   = error "Implement Assign ArrayElement"
-llSA' (Decrease (SingleElement var))
+llSA (Decrease (SingleElement var))
   = return $ [(LLCp (PReg 0) (PVar var)), (LLDec (PReg 0)), (LLCp (PVar var) (PReg 0))]
-llSA' (Decrease (ArrayElement _ _))
+llSA (Decrease (ArrayElement _ _))
   = error "Implement Decrease ArrayElement"
-llSA' (Increase (SingleElement var))
+llSA (Increase (SingleElement var))
   = return $ [(LLCp (PReg 0) (PVar var)), (LLInc (PReg 0)), (LLCp (PVar var) (PReg 0))]
-llSA' (Increase (ArrayElement _ _))
+llSA (Increase (ArrayElement _ _))
   = error "Implement Increase ArrayElement"
-llSA' (Return exp1) = do
+llSA (Return exp1) = do
   e1 <- (llExp (optimiseExpr exp1) 0)
   return $ e1 ++  [LLRet]
-llSA' (Print (String str)) = do
+llSA (Print (String str)) = do
   fc <- (llExp (FunctionCall "_print_string" [String str]) 0)
   return fc
-llSA' (Print exp1) = do
+llSA (Print exp1) = do
   e1 <- (llExp (optimiseExpr exp1) 0)
   fc <- (llExp (FunctionCall "_print_int" []) 0)
   return $ e1 ++ [LLPush (PReg 0)] ++ fc ++ [LLSpAdd 4]
-llSA' (Get (SingleElement var)) = do
+llSA (Get (SingleElement var)) = do
   e1 <- (llExp (FunctionCall "_readint" []) 0)
   return $ e1 ++ [LLCp (PVar var) (PReg 0)]
-llSA' (Get (ArrayElement _ _)) = do
+llSA (Get (ArrayElement _ _)) = do
   epos <- showCodePos
   error $ epos ++ "Cannot read a whole array"
-llSA' (Comment _)
+llSA (Comment _)
   = return $ []
-llSA' (FunctionCallS fc@(FunctionCall _ _)) = do
+llSA (FunctionCallS fc@(FunctionCall _ _)) = do
   e <- llExp fc 0
   return e
-llSA' (FunctionCallS _) = do
+llSA (FunctionCallS _) = do
   epos <- showCodePos
   error $ epos ++ "Cannot call an expression that is not a FunctionCall"
-llSA' (Until _ _ _)
-  = return $ error "Implement LLUntil"
-llSA' (IfElse _)
-  = return $ error "Implement LLIfElse"
+llSA (Until syt e body) = do
+  startlbl <- uniqLabel
+  endlbl <- uniqLabel
+  le <- llExp e 0
+  lb <- llSL body
+  return $ [LLLabel startlbl] ++ le ++ [LLJmpNZ endlbl (PReg 0),
+                                        LLScope syt lb,
+                                        LLJmp startlbl,
+                                        LLLabel endlbl]
+llSA (IfElse list) = do
+  endlbl <- uniqLabel
+  ls <- mapM (\(syt, e, body) -> do
+                                 le <- llExp e 0
+                                 lb <- llSL body
+                                 lbl <- uniqLabel
+                                 return $ le ++ [LLJmpZ lbl (PReg 0), LLScope syt lb, LLJmp endlbl, LLLabel lbl]
+             ) list
+  return $ concat $ (ls ++ [[LLLabel endlbl]])
 
-
-llSA :: StatementAct -> SIM [LLcmd]
-llSA = llSA'
 
 
 llS :: Statement -> SIM [LLcmd]

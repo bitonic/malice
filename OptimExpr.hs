@@ -111,9 +111,9 @@ evalUnOp op = error ("evalUnOp: Invalid operand encountered: " ++ op)
 
 
 optimiseExpr :: Expr -> Expr
-optimiseExpr = reduceExprImms . sortExprType . sortExprWeight
+--optimiseExpr = reduceExprImms . sortExprType . sortExprWeight
 --optimiseExpr = sortExprType . sortExprWeight
 -- Disable optimisations for now
---optimiseExpr = id
+optimiseExpr = id
 
 
