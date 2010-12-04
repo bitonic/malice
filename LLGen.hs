@@ -9,7 +9,7 @@ import CGCommon
 import OptimExpr
 import Data.Bits
 import Data.Char
-import Control.Monad.State
+--import Control.Monad.State
 
 
 --type VarOffset = Int
@@ -49,8 +49,6 @@ data LLcmd
      | LLPush LLParam
      | LLPop LLParam
      | LLSrcLine Immediate
-     | LLPrint LLParam
-     | LLGet Variable
      | LLCall String
      deriving (Show, Eq)
 
@@ -118,8 +116,9 @@ llExp (FunctionCall fn args) destreg = do
     ++ ( concat $ map (flip (++) [LLPush (PReg destreg)]) $ llargs )
     ++ [LLCall fn, LLSpAdd $ fromIntegral (4 * length args)]
     ++ (if destreg == 0 then [] else [LLCp (PReg destreg) (PReg 0), LLPop (PReg 0)])
-llExp (String _) _
-  = error "Implement EXP String"
+llExp (String str) destreg = do
+  strlbl <- uniqStr str
+  return $ [LLCp (PReg destreg) (PLbl strlbl)]
 llExp (Id (ArrayElement _ _)) _
   = error "Implement EXP ArrayElement"
 
@@ -146,23 +145,26 @@ llSA' (Increase (ArrayElement _ _))
 llSA' (Return exp1) = do
   e1 <- (llExp (optimiseExpr exp1) 0)
   return $ e1 ++  [LLRet]
-llSA' (Print (String str))
-  = return $ [LLPrint (PStr str)]
+llSA' (Print (String str)) = do
+  e <- (llExp (FunctionCall "_print_string" [String str]) 0)
+  return e
 llSA' (Print exp1) = do
   e1 <- (llExp (optimiseExpr exp1) 0)
   return $ e1 ++ error "Implement LLPrint"
 llSA' (Get (SingleElement var)) = do
   e1 <- (llExp (FunctionCall "_readint" []) 0)
   return $ e1 ++ [LLCp (PVar var) (PReg 0)]
-llSA' (Get (ArrayElement _ _))
-  = return $ error "Cannot read a whole array"
+llSA' (Get (ArrayElement _ _)) = do
+  epos <- showCodePos
+  error $ epos ++ "Cannot read a whole array"
 llSA' (Comment _)
   = return $ []
 llSA' (FunctionCallS fc@(FunctionCall _ _)) = do
   e <- llExp fc 0
   return e
-llSA' (FunctionCallS _)
-  = return $ error "Cannot call an expression that is not a FunctionCall"
+llSA' (FunctionCallS _) = do
+  epos <- showCodePos
+  error $ epos ++ "Cannot call an expression that is not a FunctionCall"
 llSA' (Until _ _ _)
   = return $ error "Implement LLUntil"
 llSA' (IfElse _)
@@ -170,19 +172,16 @@ llSA' (IfElse _)
 
 
 llSA :: StatementAct -> SIM [LLcmd]
-llSA (Print (String str))
-  = return $ [LLPrint (PStr str)]
-llSA sa = do
-  ll <- llSA' sa
-  return ll
+llSA = llSA'
 
 
 llS :: Statement -> SIM [LLcmd]
 llS s = do
   ll <- llSA sa
+  putCodePos cp
   return $ (LLSrcLine $ fromIntegral line) : ll
   where
-    ((line, _), sa) = s
+    (cp@(line, _), sa) = s
 
 llSL :: StatementList -> SIM [LLcmd]
 llSL ss = do

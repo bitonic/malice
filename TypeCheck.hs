@@ -5,8 +5,8 @@ module TypeCheck
        where
 
 import Common
-import Parser
-import Data.Map ( Map )
+--import Parser
+--import Data.Map ( Map )
 import qualified Data.Map as M
 import Control.Monad.Error
 import Control.Monad.State
@@ -104,16 +104,16 @@ declaration :: Declaration -> TypeMonad Declaration
 declaration (pos, d) = dAct d >>= return . (,) pos
   
 dAct :: DeclarationAct -> TypeMonad DeclarationAct
-dAct f@(Function _ name args t sl) = do
+dAct (Function _ name args rt sl) = do
   pushST (M.fromList (map (\(n, t) -> (n, (t, -1))) args))
   sl' <- statementList sl
   st <- popST
-  return (Function st name args t sl')
+  return (Function st name args rt sl')
 
 -- Statements checker
 statementList :: StatementList -> TypeMonad StatementList
 statementList [] = return []
-statementList ((pos, Return e) : sl) = expr e >> return [(pos, Return e)]
+statementList ((pos, Return e) : _) = expr e >> return [(pos, Return e)]
 statementList (s : sl) = do
   s' <- statement s
   sl' <- statementList sl
@@ -123,21 +123,21 @@ statement :: Statement -> TypeMonad Statement
 statement (pos, sact) = putPos pos >> fmap ((,) pos) (sAct sact)
 
 sAct :: StatementAct -> TypeMonad StatementAct
-sAct s@(Assign id e) = do
-  t1 <- getIdentifier id
+sAct s@(Assign var e) = do
+  t1 <- getIdentifier var
   t2 <- expr e
   if t1 == t2
     then return s
     else throwTypeError ("Trying to assign a value of type " ++ show t2 ++
-                         " to variable \"" ++ show id ++ "\" of type " ++
+                         " to variable \"" ++ show var ++ "\" of type " ++
                          show t1 ++ ".")
 sAct s@(Declare t v) = do
   st <- getST
   case M.lookup v st of
     Nothing -> (getST >>= (putST . M.insert v (t, -1))) >> return s
     _       -> throwTypeError ("Trying to redeclare variable " ++ v ++ ".")
-sAct s@(Decrease id) = getIdentifier id >> return s
-sAct s@(Increase id) = getIdentifier id >> return s
+sAct s@(Decrease var) = getIdentifier var >> return s
+sAct s@(Increase var) = getIdentifier var >> return s
 sAct s@(Print _) = return s
 sAct s@(Get _) = return s
 sAct s@(Comment _) = return s
@@ -166,7 +166,7 @@ expr :: Expr -> TypeMonad MaliceType
 expr (Int _) = return MaliceInt
 expr (Char _) = return MaliceChar
 expr (String _) = return MaliceString
-expr (Id id) = getIdentifier id
+expr (Id var) = getIdentifier var
 expr (UnOp op e) = do
   t <- expr e
   opTypes t op

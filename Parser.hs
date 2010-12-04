@@ -11,7 +11,7 @@ import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr
 import Text.ParserCombinators.Parsec.Token
 import Text.ParserCombinators.Parsec.Language
-import Text.ParserCombinators.Parsec.Pos ( sourceLine, sourceColumn )
+--import Text.ParserCombinators.Parsec.Pos ( sourceLine, sourceColumn )
 
 -- Language characteristics
 
@@ -44,11 +44,11 @@ p_identifier = try p_arrayEl
                <|> liftM SingleElement p_varName
                <?> "identifier"
 p_arrayEl = do
-  id <- p_varName
-  p_string "'s"
+  var <- p_varName
+  _ <- p_string "'s"
   pos <- p_expr
-  p_string "piece"
-  return (ArrayElement id pos)
+  _ <- p_string "piece"
+  return (ArrayElement var pos)
 
 -- Actual parser
 mainparser :: String -> Parser AST
@@ -98,11 +98,11 @@ p_incdec v = choice [ p_string "ate" >> return (Increase v)
                     ]
 
 p_declare v = do
-  p_cstring "was a"
+  _ <- p_cstring "was a"
   liftM (flip Declare v) p_type
 
 p_declarearray v = do
-  p_string "had"
+  _ <- p_string "had"
   size <- p_expr
   t <- p_type
   return (Declare (MaliceArraySize t size) v)
@@ -119,15 +119,15 @@ p_comment = liftM Comment (p_quotedstring <* p_cstring "thought Alice")
           
 -- Composite statements
 p_until = do
-  p_string "eventually"
+  _ <- p_string "eventually"
   e <- p_parens p_expr
-  p_string "because"
+  _ <- p_string "because"
   liftM (Until empty e) $ manyTill p_statement $ try (p_cstring "enough times")
 
 p_ifelse = do 
-  (p_string "perhaps" <|> p_string "either")
+  _ <- (p_string "perhaps" <|> p_string "either")
   e <- p_expr
-  p_string "so"
+  _ <- p_string "so"
   s <- many p_statement
   rest <- manyTill elseifs $ try (
     try (p_string "or" >> notFollowedBy (p_string "maybe" >> return 'x'))
@@ -143,19 +143,19 @@ p_ifelse = do
 
 p_function = do
   p_white
-  p_cstring "The room"
+  _ <- p_cstring "The room"
   name <- p_varName
   args <-  p_parens $ sepBy (liftM2 (flip (,)) p_type p_varName) (p_string ",")
-  p_cstring "contained a"
+  _ <- p_cstring "contained a"
   ret <- p_type
   sl <- manyTill p_statement p_nextfunction
   return $ Function empty name args ret sl
 
 p_changer = do
   p_white
-  p_cstring "The Looking-Glass"
+  _ <- p_cstring "The Looking-Glass"
   name <- p_varName
-  p_cstring "changed a"
+  _ <- p_cstring "changed a"
   t <- p_type
   sl <- manyTill (lookAhead (notFollowedBy (p_return >> return 'x')) >> p_statement) p_nextfunction
   return $ Function empty name [("it", t)] t (sl ++
@@ -167,10 +167,10 @@ p_nextfunction =
   <?> "function or Looking-Glass declaration"
 
 p_changercall = do
-  id <- p_identifier
-  p_cstring "went through"
+  var <- p_identifier
+  _ <- p_cstring "went through"
   function <- p_varName
-  return (Assign id (FunctionCall function [Id id]))
+  return (Assign var (FunctionCall function [Id var]))
 
 p_type =
   try (liftM MaliceArray (p_string "spider" >> p_type'))

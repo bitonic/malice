@@ -102,6 +102,7 @@ type SymbolTable = Map String (MaliceType, Int)
 stringToType "number" = MaliceInt
 stringToType "letter" = MaliceChar
 stringToType "sentence" = MaliceString
+stringToType _ = error "Unknown type string in source code."
 
 declName (Function _ s _ _ _) = s
 
@@ -123,13 +124,13 @@ instance Show AST where
     "File " ++ fn ++ ":\n\n" ++
     showDL dl
 
-showS (Assign id e) _ = show id ++ " = " ++ show e
+showS (Assign var e) _ = show var ++ " = " ++ show e
 showS (Declare t n) _ = n ++ " is a " ++ show t
-showS (Decrease id) _ = "Decrease " ++ show id
-showS (Increase id) _ = "Increase " ++ show id
+showS (Decrease var) _ = "Decrease " ++ show var
+showS (Increase var) _ = "Increase " ++ show var
 showS (Return e) _ = "Return " ++ show e
 showS (Print e) _ = "Print \"" ++ show e ++ "\""
-showS (Get id) _ = "Get " ++ show id
+showS (Get var) _ = "Get " ++ show var
 showS (Comment _) _ = "---"
 showS (FunctionCallS e) _ = show e
 showS (Until st e sl) ind = "Until " ++ show e ++ " becomes true\n" ++
@@ -170,6 +171,6 @@ instance Show Expr where
   show (Int i) = show i
   show (Char c) = [c]
   show (String s) = s
-  show (Id id) = show id
+  show (Id var) = show var
 
 showST st = (initEmpty $ initEmpty $ concatMap (\(s, (t, _)) -> show t ++ " \"" ++ s ++ "\", ") $ M.assocs st) ++ "."
