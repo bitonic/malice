@@ -136,7 +136,7 @@ cgLine (LLNot (PReg r)) = do
 --      (LLSub (PReg r) (PVar v)),
 --      (LLCp (PVar v) (PReg r)) ]
 cgLine (LLRet) = do
-  fn <- getFunName
+  fn <- getFuncName
   return $ "jmp end_" ++ fn ++ "\n"
 --  = return $ "ret\n"
 cgLine (LLSpSub imm)
@@ -159,6 +159,8 @@ cgLine (LLSrcLine i)
   = return $ "; Source line " ++ (show i) ++ "\n"
 cgLine (LLCall fn)
   = return $ "call " ++ fn ++ "\n"
+cgLine (LLLabel l)
+  = return $ l ++ ":\n"
 --cgLine _
 --  = error "cgLine: Unknown operator/operand combination"
 
@@ -193,13 +195,14 @@ prepSymTabOffsets = M.fromList . (prepSymTabOffsets' 0) . M.toAscList
 cgDA :: DeclarationAct -> SIM String
 --cgDA (Function symtab name arglist rettype body)
 cgDA (Function symtab name _ _ body) = do
+  putFuncName name
   newsyt <- return $ (prepSymTabOffsets symtab)
   pushSymTab newsyt
-  lBody <- llSL body
+  lBody <- llSL body -- have to do this first to calculate memory need
   cSave <- cgLL llSave
   cAlloc <- cgLine llAlloc
   cBody <- cgLL lBody
-  cDealloc  <- cgLine  llDealloc
+  cDealloc  <- cgLine llDealloc
   cRestore <- cgLL llRestore
   _ <- popSymTab
   return $ "\n"
@@ -224,21 +227,23 @@ cgDA (Function symtab name _ _ body) = do
     llSave = [LLPush (PReg 1)]
     llRestore = [LLPop (PReg 1)]
 
-cgD :: Declaration -> String
+cgD :: Declaration -> SIM String
 --cgD (pos, (Function symtab name arglist rettype body))
-cgD ( _, da@(Function _ name _ _ _) )
-  = (((flip evalState) si).cgDA) da
-  where
-    si = (name, [], [], (0, 0))
+cgD ( _, da ) = do
+  cda <- cgDA da
+  return cda
 
 
 
-cgDL :: DeclarationList -> String
-cgDL dl
-  = asmPrologue
-    ++ concat (map cgD dl)
+cgDL :: DeclarationList -> SIM String
+cgDL dl = do
+  cs <- mapM cgD dl
+  return $ asmPrologue
+    ++ concat cs
     ++ "\n"
 
 cgAST :: AST -> String
-cgAST (AST _ dl) = cgDL dl
+cgAST (AST _ dl) = (((flip evalState) si).cgDL) dl
+  where
+    si = ("", [], [], (0, 0), 0)
 

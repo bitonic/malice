@@ -39,6 +39,14 @@ data LLcmd
      | LLDec LLParam
      | LLInc LLParam
      | LLNot LLParam
+     | LLClt LLParam LLParam
+     | LLCgt LLParam LLParam
+     | LLCle LLParam LLParam
+     | LLCge LLParam LLParam
+     | LLCeq LLParam LLParam
+     | LLCneq LLParam LLParam
+     | LLCand LLParam LLParam
+     | LLCor LLParam LLParam
 --Return: Have the return value ready in register 0!
      | LLRet
      | LLSpSub Immediate
@@ -50,6 +58,7 @@ data LLcmd
      | LLPop LLParam
      | LLSrcLine Immediate
      | LLCall String
+     | LLLabel Label
      deriving (Show, Eq)
 
 
@@ -66,11 +75,20 @@ llBinOp "%" = LLMod
 llBinOp "&" = LLAnd
 llBinOp "|" = LLOr
 llBinOp "^" = LLXOr
+llBinOp "<" = LLClt
+llBinOp ">" = LLCgt
+llBinOp "<=" = LLCle
+llBinOp ">=" = LLCge
+llBinOp "==" = LLCeq
+llBinOp "!=" = LLCneq
+llBinOp "&&" = LLCand
+llBinOp "||" = LLCor
 llBinOp op = error ("llBinOp: Invalid operand encountered: " ++ op)
 
 llUnOp :: Operand -> LLParam -> LLcmd
 llUnOp "~" = LLNot
-llUnOp op = error ("llUnOp: Invalid operand encountered: " ++ op)
+llUnOp "-" = error "Implement EXP -"
+llUnOp op = error $ "llUnOp: Invalid operand encountered: " ++ op
 
 truncates32tou8 :: Immediate -> Immediate
 truncates32tou8 i = 255 .&. i
@@ -146,11 +164,12 @@ llSA' (Return exp1) = do
   e1 <- (llExp (optimiseExpr exp1) 0)
   return $ e1 ++  [LLRet]
 llSA' (Print (String str)) = do
-  e <- (llExp (FunctionCall "_print_string" [String str]) 0)
-  return e
+  fc <- (llExp (FunctionCall "_print_string" [String str]) 0)
+  return fc
 llSA' (Print exp1) = do
   e1 <- (llExp (optimiseExpr exp1) 0)
-  return $ e1 ++ error "Implement LLPrint"
+  fc <- (llExp (FunctionCall "_print_int" []) 0)
+  return $ e1 ++ [LLPush (PReg 0)] ++ fc ++ [LLSpAdd 4]
 llSA' (Get (SingleElement var)) = do
   e1 <- (llExp (FunctionCall "_readint" []) 0)
   return $ e1 ++ [LLCp (PVar var) (PReg 0)]

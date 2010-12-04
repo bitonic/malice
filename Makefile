@@ -17,6 +17,7 @@ clean:
 	rm -f *.hi
 	rm -f *.o
 	rm -f malice2asm
+	rm -f *~
 
 .PHONY : tar
 tar:

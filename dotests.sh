@@ -89,6 +89,11 @@ function ma_testsingle
 		out_ok 2 "$BASENAME: Compile retval"
 		rm "$OUTPUTDIR"/"$BASENAME".tcr
 		rm -f "$OUTPUTDIR/$BASENAME.compilation"
+		if [ "$CRV" != 0 ]
+		then
+			rm -f "$OUTPUTDIR"/"$BASENAME".tce
+			rm -f "$OUTPUTDIR"/"$BASENAME".tco
+		fi
 	else
 		out_fail 0 "$BASENAME: Compile retval: $(<$OUTPUTDIR/$BASENAME.tcr) <> $CRV"
 		if [ -e "$BASEPATH".compilation ]
