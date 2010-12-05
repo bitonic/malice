@@ -247,6 +247,8 @@ asmPrologue = "\n"
               ++ "; Code for Linux on IA-32:\n"
               ++ "\n"
               ++ "section .text ; start of code\n\n"
+              ++ "extern _print_string\n"
+              ++ "extern _print_int\n"
 
 
 
@@ -256,6 +258,7 @@ cgDA :: DeclarationAct -> SIM String
 cgDA (Function symtab name _ _ body) = do
   putFuncName name
   pushSymTab symtab
+  putLabelCtr 0
   lBody <- llSL body
   cBody <- cgLL lBody -- have to do this first to calculate memory need
   cSave <- cgLL llSave
@@ -296,9 +299,12 @@ cgD ( _, da ) = do
 cgDL :: DeclarationList -> SIM String
 cgDL dl = do
   cs <- mapM cgD dl
+  stt <- getStrTab
   return $ asmPrologue
     ++ concat cs
-    ++ "\n"
+    ++ "\n\n"
+    ++ "section .data\n"
+    ++ concat [ "_str_" ++ (show i) ++ ": db \"" ++ s ++ "\",0\n" | (i, s) <- stt ]
 
 cgAST :: AST -> String
 cgAST (AST _ dl) = (((flip evalState) si).cgDL) dl

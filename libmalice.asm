@@ -43,20 +43,21 @@ _readintimpl: db "Implement _readint.",0x0a, 0
 
 
 
-_print_string:		; void printString(char *string)
+global _print_string
+_print_string:	; void printString(char *string)
 push eax	; will be: syscall number
-push ebx ; will be: stdout fd
-push ecx ; will be: character start address
+push ebx 	; will be: stdout fd
+push ecx 	; will be: character start address
 push edx	; will be: character counter
 
-mov  eax, 0			; prepare for holding a char
+mov  eax, 0		; prepare for holding a char
 mov  ecx, [esp+20]	; string start address
 mov  edx, -1		; init char counter to 0
 
 _print_string_loop:
-	inc  edx			; char_counter++
+	inc  edx		; char_counter++
 	mov  al, [ecx+edx]	; check next char
-cmp al, 0				; if != '\0' continue
+cmp al, 0			; if != '\0' continue
 jne _print_string_loop
 
 mov  ebx, 1	; stdout fd
@@ -69,6 +70,38 @@ pop ebx
 pop eax
 ret
 
+
+global _print_int
+_print_int:	; void printInt(int num)
+push eax
+push ecx
+push edi
+mov eax, [esp+4]	; num
+sub esp, 12		; make space for converted integer
+lea edi, [esp+11]	; string offset counter
+
+mov [esp+11], byte 0	; make sure string is terminated
+mov ecx, 10		; always divide by 10
+
+_print_int_loop:
+	mov edx, 0
+	idiv ecx
+	add edx, 0x30
+	dec edi
+	mov [edi], dl
+test eax, eax
+jne _print_int_loop
+
+;inc edi
+push edi
+call _print_string
+add esp, 4
+
+add esp, 12
+pop edi
+pop ecx
+pop eax
+ret
 
 
 
