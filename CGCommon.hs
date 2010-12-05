@@ -140,5 +140,5 @@ strToAsm s = "\"" ++ strToAsm' s ++ "\",0"
     strToAsm' [] = []
     strToAsm' (c : s)
       | elem c escapedChars = "\"," ++ show (ord c) ++ ",\"" ++ strToAsm' s
-      | otherwise           = c : strToAsm s
+      | otherwise           = c : strToAsm' s
     escapedChars = "\0\a\b\f\n\r\t\v\"\&\'\\"
