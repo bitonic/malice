@@ -56,7 +56,6 @@ data StatementAct
      | Return Expr
      | Print Expr
      | Get Identifier
-     | Comment String
      | FunctionCallS Expr
      -- Composite statements
      | Until SymbolTable Expr StatementList
@@ -110,7 +109,7 @@ initEmpty [] = []
 initEmpty xs = init xs
 
 -- Show functions.
--- WARINING: UGLY CODE
+-- WARINING: UGLY CODE, for debugging purposes
 
 instance Show MaliceType where
   show MaliceInt = "number"
@@ -131,7 +130,6 @@ showS (Increase var) _ = "Increase " ++ show var
 showS (Return e) _ = "Return " ++ show e
 showS (Print e) _ = "Print \"" ++ show e ++ "\""
 showS (Get var) _ = "Get " ++ show var
-showS (Comment _) _ = "---"
 showS (FunctionCallS e) _ = show e
 showS (Until st e sl) ind = "Until " ++ show e ++ " becomes true\n" ++
                             showStOrNot st ind ++

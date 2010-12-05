@@ -140,7 +140,6 @@ sAct s@(Decrease var) = getIdentifier var >> return s
 sAct s@(Increase var) = getIdentifier var >> return s
 sAct s@(Print _) = return s
 sAct s@(Get _) = return s
-sAct s@(Comment _) = return s
 sAct s@(FunctionCallS e) = expr e >> return s
 sAct (Until _ e sl) = do
   (st, sl') <- conditional e sl

@@ -66,19 +66,19 @@ p_separator = try (p_string "too" >> p_separator')
 -- Statement
 p_statement = do
   p <- getPosition
-  s <- (try (p_return <* p_separator)
-        <|> try ((p_varName >>= p_declare) <* p_separator)
-        <|> try ((p_varName >>= p_declarearray) <* p_separator)
-        <|> try ((p_identifier >>= p_incdec) <* p_separator)
-        <|> try ((p_identifier >>= p_assign) <* p_separator)
-        <|> try (p_print <* p_separator)
-        <|> try (p_get <* p_separator)
-        <|> try (p_comment <* p_separator)
-        <|> try (p_until <* p_separator)
-        <|> try (p_ifelse <* p_separator)
-        <|> try (p_changercall <* p_separator)
-        <|> try (liftM FunctionCallS p_functioncall <* p_separator)
+  s <- (try p_return
+        <|> try (p_varName >>= p_declare)
+        <|> try (p_varName >>= p_declarearray)
+        <|> try (p_identifier >>= p_incdec)
+        <|> try (p_identifier >>= p_assign)
+        <|> try p_print
+        <|> try p_get
+        <|> try p_until
+        <|> try p_ifelse
+        <|> try p_changercall
+        <|> liftM FunctionCallS p_functioncall
         <?> "statement")
+  p_separator
   return ((sourceLine p, sourceColumn p), s)
 
 -- Declaration statement
@@ -115,8 +115,6 @@ p_print = liftM Print (p_expr <*
 
 p_get = p_cstring "what was" >> liftM Get p_identifier
 
-p_comment = liftM Comment (p_quotedstring <* p_cstring "thought Alice")
-          
 -- Composite statements
 p_until = do
   _ <- p_string "eventually"

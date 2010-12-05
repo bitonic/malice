@@ -180,8 +180,6 @@ llSA (Get (SingleElement var)) = do
 llSA (Get (ArrayElement _ _)) = do
   epos <- showCodePos
   error $ epos ++ "Cannot read a whole array"
-llSA (Comment _)
-  = return $ []
 llSA (FunctionCallS fc@(FunctionCall _ _)) = do
   e <- llExp fc 0
   return e
