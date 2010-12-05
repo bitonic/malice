@@ -33,15 +33,9 @@ ret
 
 
 
-global _readint
-_readint:
-push _readintimpl
-call _print_string
-mov eax, 0
-ret
-_readintimpl: db "Implement _readint.",0x0a, 0
 
 
+; PRINTING function for STRINGS (8-bit)
 
 global _print_string
 _print_string:	; void printString(char *string)
@@ -71,46 +65,126 @@ pop eax
 ret
 
 
+
+
+
+; PRINTING function for INTEGERS (signed, 32-bit)
+
 global _print_int
 _print_int:	; void printInt(int num)
-push eax
-push ecx
-push edi
-mov eax, [esp+16]	; num
+push eax	; will be: dividend
+push ebx	; will be: divisor
+push ecx 	; will be: character start address
+push edx	; will be: character counter
+mov eax, [esp+20]	; load num
 sub esp, 12		; make space for converted integer
-lea edi, [esp+11]	; string offset counter
+lea ecx, [esp+11]	; string offset counter, start at lastchar+1
+			; so writing ends at 10 and char 11 is reserved
 
-mov [esp+11], byte 0	; make sure string is terminated
-mov ecx, 10		; always divide by 10
+mov ebx, 10		; always divide by 10
 
-cmp eax, dword 0
+cmp eax, dword 0	; if the number is negative, negate
 jge _print_int_loop
-neg eax			; great fun at -2147483648
+neg eax			; great fun at -2147483648. Overflow ftw!
 
 _print_int_loop:
 	mov edx, 0
-	idiv ecx
+	idiv ebx
 	add edx, 0x30
-	dec edi		; write next char
-	mov [edi], dl
+	dec ecx		; write next char
+	mov [ecx], dl
 test eax, eax
 jne _print_int_loop
 
-cmp [esp+28], dword 0	; check for negative number
-jge _print_int_positive
-dec edi
-mov [edi], byte '-'
+cmp [esp+32], dword 0	; check for negative number
+jge _print_int_end	; skip for positive
+dec ecx
+mov [ecx], byte '-'	; add - sign
 
-_print_int_positive:
-push edi
-call _print_string
-add esp, 4
+_print_int_end:
+lea edx, [esp+11]
+sub edx, ecx	; number of chars
+mov  ebx, 1	; stdout fd
+mov  eax, 4	; write()
+int 0x80	; let the number speak
 
 add esp, 12
-pop edi
+pop edx
 pop ecx
+pop ebx
 pop eax
 ret
+
+
+
+
+
+; READING function for INTEGERS (signed, 32-bit)
+
+global _read_int
+_read_int:	; int readInt(void)
+push eax
+push ebx
+push ecx
+push edx
+push esi	; negative number info
+push edi	; actual number
+
+sub esp, 4	; make room for character to be read
+
+mov esi, 0	; 0 = positive
+mov edi, 0	; start with 0
+
+
+_read_int_next:
+mov edx, 1	; number of chars
+mov ecx, esp	; character buffer
+mov ebx, 0	; stdin fd
+mov eax, 3	; read()
+int 0x80
+
+cmp eax, 0
+je _read_int_end	; End of input
+
+mov eax, 0
+mov al, [esp]
+
+cmp al, '-'
+jne _read_int_process_num
+mov esi, 1
+jmp _read_int_next
+
+_read_int_process_num:
+cmp al, 0x30
+jb _read_int_end	; char < '0'
+cmp al, 0x39
+ja _read_int_end	; char > '9'
+
+sub eax, 0x30
+imul edi, 10	; shift old digits
+add edi, eax	; add new digit
+
+jmp _read_int_next
+
+
+_read_int_end:
+test esi, esi
+jz _read_int_end2
+neg edi
+
+_read_int_end2:
+mov eax, edi	; Return value: The number read
+
+add esp, 4
+pop edi
+pop esi
+pop edx
+pop ecx
+pop ebx
+add esp, 4	; pop eax
+ret
+
+
 
 
 

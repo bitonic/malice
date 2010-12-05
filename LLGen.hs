@@ -135,7 +135,7 @@ llExp (Id (SingleElement var)) destreg
 llExp (FunctionCall fn args) destreg = do
   llargs <- mapM (flip (llExp) destreg) args
   return $ (if destreg == 0 then [] else [LLPush (PReg 0)])
-    ++ ( concat $ map (flip (++) [LLPush (PReg destreg)]) $ llargs )
+    ++ ( concat $ reverse $ map (flip (++) [LLPush (PReg destreg)]) $ llargs )
     ++ [LLCall fn, LLSpAdd $ fromIntegral (4 * length args)]
     ++ (if destreg == 0 then [] else [LLCp (PReg destreg) (PReg 0), LLPop (PReg 0)])
 llExp (String str) destreg = do
@@ -175,7 +175,7 @@ llSA (Print exp1) = do
   fc <- (llExp (FunctionCall "_print_int" []) 0)
   return $ e1 ++ [LLPush (PReg 0)] ++ fc ++ [LLSpAdd 4]
 llSA (Get (SingleElement var)) = do
-  e1 <- (llExp (FunctionCall "_readint" []) 0)
+  e1 <- (llExp (FunctionCall "_read_int" []) 0)
   return $ e1 ++ [LLCp (PVar var) (PReg 0)]
 llSA (Get (ArrayElement _ _)) = do
   epos <- showCodePos

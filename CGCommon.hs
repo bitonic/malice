@@ -3,7 +3,7 @@ module CGCommon
          Operand, Register, Variable, Immediate, Label,
          ScopeInfo, SIM,
          getFuncName, putFuncName,
-         getSymTabs, putSymTabs, pushSymTab, popSymTab, lookupSym,
+         getSymTabs, putSymTabs, pushSymTab, scanPushSymTab, popSymTab, lookupSym, funcArgsSymTab,
          getStrTab, putStrTab, uniqStr,
          getCodePos, putCodePos, showCodePos,
          getLabelCtr, putLabelCtr, uniqLabel,
@@ -58,6 +58,11 @@ putSymTabs syt = do
 pushSymTab :: SymbolTable -> SIM ()
 pushSymTab syt = do
   sts <- getSymTabs
+  putSymTabs (syt : sts)
+
+scanPushSymTab :: SymbolTable -> SIM ()
+scanPushSymTab syt = do
+  sts <- getSymTabs
   putSymTabs ((prepSymTabOffsets (sum $ map M.size sts) syt) : sts)
 
 popSymTab :: SIM SymbolTable
@@ -82,6 +87,15 @@ prepSymTabOffsets' num ( (v, (t, _)) : ss )
 prepSymTabOffsets :: Int -> SymbolTable -> SymbolTable
 prepSymTabOffsets startid = M.fromList . (prepSymTabOffsets' startid) . M.toAscList
 
+funcArgsSymTab' :: FunctionArgs -> SymbolTable -> SymbolTable
+funcArgsSymTab' [] st
+  = st
+funcArgsSymTab' ((v, t) : xs) st
+  = funcArgsSymTab' xs (M.insert v (t, (length xs) + 2) st)
+
+funcArgsSymTab :: FunctionArgs -> SymbolTable
+funcArgsSymTab fa
+  = funcArgsSymTab' (reverse fa) M.empty
 
 
 getStrTab :: SIM StringTable
@@ -139,7 +153,7 @@ uniqLabel = do
 strToAsm s = "\"" ++ strToAsm' s ++ "\",0"
   where
     strToAsm' [] = []
-    strToAsm' (c : s)
-      | elem c escapedChars = "\"," ++ show (ord c) ++ ",\"" ++ strToAsm' s
-      | otherwise           = c : strToAsm' s
+    strToAsm' (c : s')
+      | elem c escapedChars = "\"," ++ show (ord c) ++ ",\"" ++ strToAsm' s'
+      | otherwise           = c : strToAsm' s'
     escapedChars = "\0\a\b\f\n\r\t\v\"\&\'\\"

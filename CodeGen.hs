@@ -249,15 +249,17 @@ asmPrologue = "\n"
               ++ "section .text ; start of code\n\n"
               ++ "extern _print_string\n"
               ++ "extern _print_int\n"
+              ++ "extern _read_int\n"
 
 
 
 
 cgDA :: DeclarationAct -> SIM String
 --cgDA (Function symtab name arglist rettype body)
-cgDA (Function symtab name _ _ body) = do
+cgDA (Function symtab name args _ body) = do
   putFuncName name
-  pushSymTab symtab
+  pushSymTab $ funcArgsSymTab args
+  scanPushSymTab symtab
   putLabelCtr 0
   lBody <- llSL body
   cBody <- cgLL lBody -- have to do this first to calculate memory need
@@ -265,6 +267,7 @@ cgDA (Function symtab name _ _ body) = do
   cAlloc <- cgLine llAlloc
   cDealloc  <- cgLine llDealloc
   cRestore <- cgLL llRestore
+  _ <- popSymTab
   _ <- popSymTab
   return $ "\n"
     ++ "global " ++ name ++ "\n"
