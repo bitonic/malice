@@ -304,7 +304,8 @@ cgDL dl = do
     ++ concat cs
     ++ "\n\n"
     ++ "section .data\n"
-    ++ concat [ "_str_" ++ (show i) ++ ": db \"" ++ s ++ "\",0\n" | (i, s) <- stt ]
+--    ++ concat [ "_str_" ++ (show i) ++ ": db \"" ++ s ++ "\",0\n" | (i, s) <- stt ]
+    ++ concat [ "_str_" ++ (show i) ++ ": db " ++ (strToAsm s) ++ "\n" | (i, s) <- stt ]
 
 cgAST :: AST -> String
 cgAST (AST _ dl) = (((flip evalState) si).cgDL) dl

@@ -7,6 +7,7 @@ module CGCommon
          getStrTab, putStrTab, uniqStr,
          getCodePos, putCodePos, showCodePos,
          getLabelCtr, putLabelCtr, uniqLabel,
+         strToAsm,
        ) where
 
 import Common

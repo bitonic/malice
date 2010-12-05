@@ -106,6 +106,7 @@ evalBinOp op = error ("evalBinOp: Invalid operand encountered: " ++ op)
 
 evalUnOp :: Operand -> Immediate -> Immediate
 evalUnOp "~" = (255 -)
+evalUnOp "-" = (*) (-1)
 evalUnOp op = error ("evalUnOp: Invalid operand encountered: " ++ op)
 
 

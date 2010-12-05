@@ -76,7 +76,7 @@ _print_int:	; void printInt(int num)
 push eax
 push ecx
 push edi
-mov eax, [esp+4]	; num
+mov eax, [esp+16]	; num
 sub esp, 12		; make space for converted integer
 lea edi, [esp+11]	; string offset counter
 
@@ -92,7 +92,12 @@ _print_int_loop:
 test eax, eax
 jne _print_int_loop
 
-;inc edi
+cmp [esp+28], dword 0
+jge _print_int_positive
+dec edi
+mov [edi], byte '-'
+
+_print_int_positive:
 push edi
 call _print_string
 add esp, 4
