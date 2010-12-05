@@ -211,7 +211,29 @@ p_functioncall = do
   f <- p_varName
   liftM (FunctionCall f) (p_parens $ sepBy p_expr p_separator);
 
-p_quotedstring = p_string "\"" >> manyTill anyChar (p_string "\"")
+p_quotedstring = p_string "\"" >> manyTill anyEscChar (p_string "\"")    
+  
+anyEscChar = do
+  c <- anyChar
+  if c == '\\'
+    then lookAhead anyChar >>= (
+      \c' -> if c' `elem` "0abfnrtv\"&'\\"
+               then (anyChar >> return (toEsc c'))
+               else (return c))
+    else return c
+  where
+    toEsc '0' = '\0'
+    toEsc 'a' = '\a'
+    toEsc 'b' = '\b'
+    toEsc 'f' = '\f'
+    toEsc 'n' = '\n'
+    toEsc 'r' = '\r'
+    toEsc 't' = '\t'
+    toEsc 'v' = '\v'
+    toEsc '"' = '"'
+    toEsc '&' = '&'
+    toEsc '\'' = '\''
+    toEsc '\\' = '\\'
 
 p_int32 = do
   int <- p_natural
