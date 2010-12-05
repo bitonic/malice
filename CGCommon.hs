@@ -11,6 +11,7 @@ module CGCommon
 
 import Common
 import Data.Int (Int32)
+import Char ( ord )
 --import Data.Map ( Map )
 import Data.Maybe
 import qualified Data.Map as M
@@ -134,3 +135,10 @@ uniqLabel = do
   putLabelCtr (lc + 1)
   return $ "_" ++ fn ++ "_" ++ (show lc)
 
+strToAsm s = "\"" ++ strToAsm' s ++ "\",0"
+  where
+    strToAsm' [] = []
+    strToAsm' (c : s)
+      | elem c escapedChars = "\"," ++ show (ord c) ++ ",\"" ++ strToAsm' s
+      | otherwise           = c : strToAsm s
+    escapedChars = "\0\a\b\f\n\r\t\v\"\&\'\\"
