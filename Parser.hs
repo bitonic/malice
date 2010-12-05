@@ -217,9 +217,7 @@ anyEscChar = do
   c <- anyChar
   if c == '\\'
     then lookAhead anyChar >>= (
-      \c' -> if c' `elem` "0abfnrtv\"&'\\"
-               then (anyChar >> return (toEsc c'))
-               else (return c))
+      \c' ->anyChar >> return (toEsc c'))
     else return c
   where
     toEsc '0' = '\0'
@@ -233,7 +231,7 @@ anyEscChar = do
     toEsc '"' = '"'
     toEsc '&' = '&'
     toEsc '\'' = '\''
-    toEsc '\\' = '\\'
+    toEsc c = c
 
 p_int32 = do
   int <- p_natural
