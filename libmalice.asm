@@ -83,16 +83,15 @@ lea edi, [esp+11]	; string offset counter
 mov [esp+11], byte 0	; make sure string is terminated
 mov ecx, 10		; always divide by 10
 
-
-cmp [esp+28], dword 0
-jb _print_int_loop
-neg eax
+cmp eax, dword 0
+jge _print_int_loop
+neg eax			; great fun at -2147483648
 
 _print_int_loop:
-	mov edx, 0xFFFFFFFF
+	mov edx, 0
 	idiv ecx
-	add edx, 0x30	; generate ASCII digit
-	dec edi		; save next char
+	add edx, 0x30
+	dec edi		; write next char
 	mov [edi], dl
 test eax, eax
 jne _print_int_loop

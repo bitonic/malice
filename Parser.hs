@@ -78,7 +78,7 @@ p_statement = do
         <|> try p_changercall
         <|> liftM FunctionCallS p_functioncall
         <?> "statement")
-  p_separator
+  _ <- p_separator
   return ((sourceLine p, sourceColumn p), s)
 
 -- Declaration statement
