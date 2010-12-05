@@ -105,10 +105,13 @@ declaration (pos, d) = dAct d >>= return . (,) pos
   
 dAct :: DeclarationAct -> TypeMonad DeclarationAct
 dAct (Function _ name args rt sl) = do
-  pushST (M.empty)
+  pushST (M.fromList (map (\(n, t) -> (n, (t, -1))) args))
   sl' <- statementList sl
   st <- popST
   return (Function st name args rt sl')
+  where
+    deleteArgs = 
+    
 
 -- Statements checker
 statementList :: StatementList -> TypeMonad StatementList
