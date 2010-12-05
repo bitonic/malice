@@ -25,10 +25,13 @@ mov eax, 1
 int 0x80
 
 
+
 global _checkarr
 _checkarr:
 mov eax, 1
 ret
+
+
 
 global _readint
 _readint:
@@ -37,6 +40,8 @@ call _print_string
 mov eax, 0
 ret
 _readintimpl: db "Implement _readint.",0x0a, 0
+
+
 
 _print_string:		; void printString(char *string)
 push eax	; will be: syscall number
@@ -63,6 +68,8 @@ pop ecx
 pop ebx
 pop eax
 ret
+
+
 
 
 section .data
