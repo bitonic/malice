@@ -216,8 +216,7 @@ p_quotedstring = p_string "\"" >> manyTill anyEscChar (p_string "\"")
 anyEscChar = do
   c <- anyChar
   if c == '\\'
-    then lookAhead anyChar >>= (
-      \c' ->anyChar >> return (toEsc c'))
+    then lookAhead anyChar >>= (\c' -> anyChar >> return (toEsc c'))
     else return c
   where
     toEsc '0' = '\0'
@@ -229,8 +228,6 @@ anyEscChar = do
     toEsc 't' = '\t'
     toEsc 'v' = '\v'
     toEsc '"' = '"'
-    toEsc '&' = '&'
-    toEsc '\'' = '\''
     toEsc c = c
 
 p_int32 = do
