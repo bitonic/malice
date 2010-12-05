@@ -108,9 +108,10 @@ dAct (Function _ name args rt sl) = do
   pushST (M.fromList (map (\(n, t) -> (n, (t, -1))) args))
   sl' <- statementList sl
   st <- popST
-  return (Function st name args rt sl')
+  return (Function (deleteArgs (map fst args) st) name args rt sl')
   where
-    deleteArgs = 
+    deleteArgs [] st = st
+    deleteArgs (k : ks) st = deleteArgs ks (M.delete k st)
     
 
 -- Statements checker
