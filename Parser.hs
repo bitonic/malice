@@ -25,7 +25,7 @@ def = emptyDef { identStart = letter
                , opLetter = oneOf $ concat operators
                , reservedOpNames = operators
                , reservedNames = ["and", "but", "then", ".",
-                                  "too", "Alice", "found", "perhaps",
+                                  "too", "Alice", "found", "perhaps", "either",
                                   "maybe", "eventually", "because"]
                }
 
@@ -45,9 +45,9 @@ p_identifier = try p_arrayEl
                <?> "identifier"
 p_arrayEl = do
   var <- p_varName
-  _ <- p_string "'s"
+  p_string "'s"
   pos <- p_expr
-  _ <- p_string "piece"
+  p_string "piece"
   return (ArrayElement var pos)
 
 -- Actual parser
@@ -102,11 +102,11 @@ p_incdec v = choice [ p_string "ate" >> return (Increase v)
                     ]
 
 p_declare v = do
-  _ <- p_cstring "was a"
+  p_cstring "was a"
   liftM (flip Declare v) p_type
 
 p_declarearray v = do
-  _ <- p_string "had"
+  p_string "had"
   size <- p_expr
   t <- p_type
   return (Declare (MaliceArraySize t size) v)
@@ -121,15 +121,15 @@ p_get = p_cstring "what was" >> liftM Get p_identifier
 
 -- Composite statements
 p_until = do
-  _ <- p_string "eventually"
+  p_string "eventually"
   e <- p_parens p_expr
-  _ <- p_string "because"
+  p_string "because"
   liftM (Until empty e) $ manyTill p_statement $ try (p_cstring "enough times")
 
 p_ifelse = do 
-  _ <- (p_string "perhaps" <|> p_string "either")
+  (p_string "perhaps" <|> p_string "either")
   e <- p_expr
-  _ <- p_string "so"
+  p_string "so"
   s <- many p_statement
   rest <- manyTill elseifs $ try (
     try (p_string "or" >> notFollowedBy (p_string "maybe" >> return 'x'))
@@ -145,19 +145,19 @@ p_ifelse = do
 
 p_function = do
   p_white
-  _ <- p_cstring "The room"
+  p_cstring "The room"
   name <- p_varName
   args <-  p_parens $ sepBy (liftM2 (flip (,)) p_type p_varName) (p_string ",")
-  _ <- p_cstring "contained a"
+  p_cstring "contained a"
   ret <- p_type
   sl <- manyTill p_statement p_nextfunction
   return $ Function empty name args ret sl
 
 p_changer = do
   p_white
-  _ <- p_cstring "The Looking-Glass"
+  p_cstring "The Looking-Glass"
   name <- p_varName
-  _ <- p_cstring "changed a"
+  p_cstring "changed a"
   t <- p_type
   sl <- manyTill (lookAhead (notFollowedBy (p_return >> return 'x')) >> p_statement) p_nextfunction
   return $ Function empty name [("it", t)] t (sl ++
@@ -170,7 +170,7 @@ p_nextfunction =
 
 p_changercall = do
   var <- p_identifier
-  _ <- p_cstring "went through"
+  p_cstring "went through"
   function <- p_varName
   return (Assign var (FunctionCall function [Id var]))
 
