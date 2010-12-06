@@ -64,7 +64,9 @@ p_separator = try (p_string "too" >> p_separator')
   where p_separator' = choice $ map p_string [ "and", "but", "then", ".", ",", "?"]
 
 -- Statement
-p_statement = do
+p_statement = try (p_comment >> p_statement') <|> p_statement'
+
+p_statement' = do
   p <- getPosition
   s <- (try p_return
         <|> try (p_varName >>= p_declare)
@@ -76,10 +78,12 @@ p_statement = do
         <|> try p_until
         <|> try p_ifelse
         <|> try p_changercall
-        <|> liftM FunctionCallS p_functioncall
+        <|> try (liftM FunctionCallS p_functioncall)
         <?> "statement")
-  _ <- p_separator
+  p_separator
   return ((sourceLine p, sourceColumn p), s)
+
+p_comment = p_quotedstring >> p_cstring "thought Alice" >> p_separator
 
 -- Declaration statement
 p_declaration = do
