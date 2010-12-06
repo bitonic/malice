@@ -224,7 +224,7 @@ p_quotedstring = p_string "\"" >> manyTill anyEscChar (p_string "\"")
 anyEscChar = do
   c <- anyChar
   if c == '\\'
-    then oneOf "0abfnrtv\"&'\\"
+    then oneOf "\0\a\b\f\n\r\t\v\"\&\'\\"
     else return c
 
 p_int32 = do
