@@ -65,23 +65,23 @@ p_separator = try (p_string "too" >> p_separator')
 
 -- Statement
 p_statement = try (p_comment >> p_statement') <|> p_statement'
-
-p_statement' = do
-  p <- getPosition
-  s <- (try p_return
-        <|> try (p_varName >>= p_declare)
-        <|> try (p_varName >>= p_declarearray)
-        <|> try (p_identifier >>= p_incdec)
-        <|> try (p_identifier >>= p_assign)
-        <|> try p_print
-        <|> try p_get
-        <|> try p_until
-        <|> try p_ifelse
-        <|> try p_changercall
-        <|> try (liftM FunctionCallS p_functioncall)
-        <?> "statement")
-  p_separator
-  return ((sourceLine p, sourceColumn p), s)
+  where
+    p_statement' = do
+      p <- getPosition
+      s <- (try p_return
+            <|> try (p_varName >>= p_declare)
+            <|> try (p_varName >>= p_declarearray)
+            <|> try (p_identifier >>= p_incdec)
+            <|> try (p_identifier >>= p_assign)
+            <|> try p_print
+            <|> try p_get
+            <|> try p_until
+            <|> try p_changercall
+            <|> try (liftM FunctionCallS p_functioncall)
+            <|> p_ifelse
+            <?> "statement")
+      p_separator
+      return ((sourceLine p, sourceColumn p), s)
 
 p_comment = p_quotedstring >> p_cstring "thought Alice" >> p_separator
 
