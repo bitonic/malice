@@ -25,8 +25,9 @@ data LLParam = PVar Variable
 
 
 data LLcmd
+     = LLDecl Variable MaliceType
 --Copy Dest Src
-     = LLCp LLParam LLParam
+     | LLCp LLParam LLParam
 --Set Dest value
      | LLAdd LLParam LLParam
      | LLSub LLParam LLParam
@@ -147,8 +148,8 @@ llExp (Id (ArrayElement _ _)) _
 
 
 llSA :: StatementAct -> SIM [LLcmd]
-llSA (Declare _ _)
-  = return $ []
+llSA (Declare t v)
+  = return $ [LLDecl v t]
 llSA (Assign (SingleElement var) (Int imm))
   = return $ [LLCp (PVar var) (PImm imm)]
 llSA (Assign (SingleElement var) exp1) = do

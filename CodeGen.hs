@@ -45,7 +45,7 @@ cgLLParam :: LLParam -> SIM String
 cgLLParam (PVar v) = do
   sym <- lookupSym v
   return $ case sym of
-    Just (_, vid) -> "[ebp-" ++ (show (vid * 4)) ++ "]"
+    Just (_, vid) -> "[ebp+" ++ (show (vid * (-4))) ++ "]"
     Nothing -> error $ "Variable " ++ v ++ " has not been defined (yet)."
 cgLLParam (PReg r)
   = return $ registerName r
@@ -79,6 +79,12 @@ cgCmp jt pdest p1 p2 = do
 
 
 cgLine :: LLcmd -> SIM String
+cgLine (LLDecl _ _) = do
+--cgLine (LLDecl v t) = do
+  --sts <- getSymTabs
+  --st <- popSymTab
+  --pushSymTab $ M.insert v (t, sum $ map M.size sts) st
+  return ""
 cgLine (LLCp p1 p2) = do
   parms <- cgLL2Param p1 p2
   return $ "mov " ++ parms ++ "\n"
@@ -171,12 +177,16 @@ cgLine (LLCand p1 p2) = do
   parm1 <- cgLLParam p1
   parm2 <- cgLLParam p2
   lbl1 <- uniqLabel
+  lbl2 <- uniqLabel
   return $ "cmp " ++ parm1 ++ ", dword 0\n"
     ++ "je " ++ lbl1 ++ "\n"
     ++ "cmp " ++ parm2 ++ ", dword 0\n"
     ++ "je " ++ lbl1 ++ "\n"
-    ++ "mov " ++ parm1 ++ ", dword 0\n"
+    ++ "mov " ++ parm1 ++ ", dword 1\n"
+    ++ "jmp " ++ lbl2 ++ "\n"
     ++ lbl1 ++ ":\n"
+    ++ "mov " ++ parm1 ++ ", dword 0\n"
+    ++ lbl2 ++ ":\n"
 cgLine (LLCor p1 p2) = do
   parm1 <- cgLLParam p1
   parm2 <- cgLLParam p2
@@ -185,9 +195,11 @@ cgLine (LLCor p1 p2) = do
   return $ "cmp " ++ parm1 ++ ", dword 0\n"
     ++ "jne " ++ lbl1 ++ "\n"
     ++ "cmp " ++ parm2 ++ ", dword 0\n"
-    ++ "jne " ++ lbl2 ++ "\n"
-    ++ lbl1 ++ ":\n"
+    ++ "jne " ++ lbl1 ++ "\n"
     ++ "mov " ++ parm1 ++ ", dword 0\n"
+    ++ "jmp " ++ lbl2 ++ "\n"
+    ++ lbl1 ++ ":\n"
+    ++ "mov " ++ parm1 ++ ", dword 1\n"
     ++ lbl2 ++ ":\n"
 cgLine (LLRet) = do
   fn <- getFuncName
@@ -210,7 +222,7 @@ cgLine (LLMod _ _)
 cgLine (LLNot _)
   = error "cgLine: Impossible operand combination for LLNot"
 cgLine (LLSrcLine i)
-  = return $ "; Source line " ++ (show i) ++ "\n"
+  = return $ "\n; Source line " ++ (show i) ++ "\n"
 cgLine (LLCall fn)
   = return $ "call " ++ fn ++ "\n"
 cgLine (LLLabel l)
@@ -260,6 +272,7 @@ cgDA (Function symtab name args _ body) = do
   putFuncName name
   pushSymTab $ funcArgsSymTab args
   scanPushSymTab symtab
+  --pushSymTab M.empty
   putLabelCtr 0
   lBody <- llSL body
   cBody <- cgLL lBody -- have to do this first to calculate memory need
