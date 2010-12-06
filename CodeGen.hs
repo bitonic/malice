@@ -145,17 +145,12 @@ cgLine (LLDec p1) = do
 cgLine (LLInc p1) = do
   parm <- cgLLParam p1
   return $ "inc " ++ parm ++ "\n"
-cgLine (LLNot (PReg r)) = do
-  c <- cgLL [
-      (LLCp (PReg (succ r)) (PReg r)),
-      (LLCp (PReg r) (PImm 255)),
-      (LLSub (PReg r) (PReg (succ r))) ]
-  return c
---cgLine (LLNot (PVar v))
---  = cgLL [
---      (LLCp (PReg r) (PImm 255)),
---      (LLSub (PReg r) (PVar v)),
---      (LLCp (PVar v) (PReg r)) ]
+cgLine (LLNot p1) = do
+  parm <- cgLLParam p1
+  return $ "not " ++ parm ++ "\n"
+cgLine (LLNeg p1) = do
+  parm <- cgLLParam p1
+  return $ "neg " ++ parm ++ "\n"
 cgLine (LLClt p1 p2) = do
   c <- cgCmp "jl" p1 p1 p2
   return $ c
@@ -175,33 +170,11 @@ cgLine (LLCneq p1 p2) = do
   c <- cgCmp "jne" p1 p1 p2
   return $ c
 cgLine (LLCand p1 p2) = do
-  parm1 <- cgLLParam p1
-  parm2 <- cgLLParam p2
-  lbl1 <- uniqLabel
-  lbl2 <- uniqLabel
-  return $ "cmp " ++ parm1 ++ ", dword 0\n"
-    ++ "je " ++ lbl1 ++ "\n"
-    ++ "cmp " ++ parm2 ++ ", dword 0\n"
-    ++ "je " ++ lbl1 ++ "\n"
-    ++ "mov " ++ parm1 ++ ", dword 1\n"
-    ++ "jmp " ++ lbl2 ++ "\n"
-    ++ lbl1 ++ ":\n"
-    ++ "mov " ++ parm1 ++ ", dword 0\n"
-    ++ lbl2 ++ ":\n"
+  parms <- cgLL2Param p1 p2
+  return $ "and " ++ parms ++ "\n" 
 cgLine (LLCor p1 p2) = do
-  parm1 <- cgLLParam p1
-  parm2 <- cgLLParam p2
-  lbl1 <- uniqLabel
-  lbl2 <- uniqLabel
-  return $ "cmp " ++ parm1 ++ ", dword 0\n"
-    ++ "jne " ++ lbl1 ++ "\n"
-    ++ "cmp " ++ parm2 ++ ", dword 0\n"
-    ++ "jne " ++ lbl1 ++ "\n"
-    ++ "mov " ++ parm1 ++ ", dword 0\n"
-    ++ "jmp " ++ lbl2 ++ "\n"
-    ++ lbl1 ++ ":\n"
-    ++ "mov " ++ parm1 ++ ", dword 1\n"
-    ++ lbl2 ++ ":\n"
+  parms <- cgLL2Param p1 p2
+  return $ "or " ++ parms ++ "\n" 
 cgLine (LLRet) = do
   fn <- getFuncName
   return $ "jmp end_" ++ fn ++ "\n"
@@ -220,8 +193,6 @@ cgLine (LLDiv _ _)
   = error "cgLine: Impossible operand combination for LLDiv on i386"
 cgLine (LLMod _ _)
   = error "cgLine: Impossible operand combination for LLMod on i386"
-cgLine (LLNot _)
-  = error "cgLine: Impossible operand combination for LLNot"
 cgLine (LLSrcLine i)
   = return $ "\n; Source line " ++ (show i) ++ "\n"
 cgLine (LLCall fn)
