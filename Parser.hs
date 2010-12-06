@@ -26,7 +26,11 @@ def = emptyDef { identStart = letter
                , reservedOpNames = operators
                , reservedNames = ["and", "but", "then", ".",
                                   "too", "Alice", "found", "perhaps", "either",
-                                  "maybe", "eventually", "because"]
+                                  "maybe", "eventually", "because", "room",
+                                  "Looking-Glass", "The", "changed", "said",
+                                  "thought", "number", "sentence", "letter", "went",
+                                  "through", "spoke"
+                                 ]
                }
 
 -- Generate useful parsers with makeTokenParser                 
