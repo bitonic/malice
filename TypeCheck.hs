@@ -51,7 +51,6 @@ pushST st = do
   (TypeState fn pos sts dm) <- get
   put (TypeState fn pos (st : sts) dm)
 
-getPos = getSem position
 putPos pos = do
   (TypeState fn _ st dm) <- get
   put (TypeState fn pos st dm)
@@ -82,6 +81,8 @@ getIdentifier (ArrayElement v _) = do
   case arr of
     MaliceArraySize t _ -> return t
     MaliceArray t       -> return t
+    _                   -> throwTypeError ("Trying to access variable " ++ v ++ 
+                                           " as an array.")
 
 -- The mighty AST checker.
 astTypeCheck :: AST -> TypeMonad AST

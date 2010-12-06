@@ -36,7 +36,6 @@ def = emptyDef { identStart = letter
 -- Generate useful parsers with makeTokenParser                 
 TokenParser { identifier = p_varName
             , reservedOp = p_reservedOp
-            , integer = p_integer
             , natural = p_natural
             , whiteSpace = p_white
             , charLiteral = p_letter
@@ -97,10 +96,6 @@ p_declaration = do
   return ((sourceLine p, sourceColumn p), d)
 
 p_return = p_cstring "Alice found" >> liftM Return p_expr
-
-p_statement_id v = try (p_incdec v)
-               <|> try (p_assign v)
-               <?> "assignment or decrease/increase"
 
 p_incdec v = choice [ p_string "ate" >> return (Increase v)
                     , p_string "drank" >> return (Decrease v)
@@ -232,10 +227,6 @@ p_string = p_lexeme . string
 p_cstring = mapM p_string . words
 
 p <* q = p >>= (\x -> q >> return x)
-
--- useful for debugging when you don't want the positions
-showSL :: StatementList -> String
-showSL = show . map snd
 
 -- parser from string
 maliceParser :: String -> String -> Either ParseError AST
