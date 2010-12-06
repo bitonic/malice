@@ -219,7 +219,7 @@ p_functioncall = do
   f <- p_varName
   liftM (FunctionCall f) (p_parens $ sepBy p_expr p_separator);
 
-p_quotedstring = p_string "\"" >> manyTill anyEscChar (p_string "\"")    
+p_quotedstring = string "\"" >> manyTill anyEscChar (p_string "\"")    
   
 anyEscChar = do
   c <- anyChar
@@ -236,8 +236,7 @@ anyEscChar = do
     toEsc 't' = '\t'
     toEsc 'v' = '\v'
     toEsc c = c
-                                                                                                                                                      
-
+    
 p_int32 = do
   int <- p_natural
   return (fromIntegral int :: Int32)
