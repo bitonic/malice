@@ -3,7 +3,7 @@ module CGCommon
          Operand, Register, Variable, Immediate, Label,
          ScopeInfo, SIM,
          getFuncName, putFuncName,
-         getSymTabs, putSymTabs, pushSymTab, scanPushSymTab, popSymTab, lookupSym, funcArgsSymTab,
+         getSymTabs, putSymTabs, pushSymTab, scanSymTab, popSymTab, lookupSym, funcArgsSymTab,
          getStrTab, putStrTab, uniqStr,
          getCodePos, putCodePos, showCodePos,
          getLabelCtr, putLabelCtr, uniqLabel,
@@ -60,10 +60,11 @@ pushSymTab syt = do
   sts <- getSymTabs
   putSymTabs (syt : sts)
 
-scanPushSymTab :: SymbolTable -> SIM ()
-scanPushSymTab syt = do
+-- prepares the given symtable based on existing number of entries on the stack
+scanSymTab :: SymbolTable -> SIM SymbolTable
+scanSymTab syt = do
   sts <- getSymTabs
-  putSymTabs ((prepSymTabOffsets (sum $ map M.size sts) syt) : sts)
+  return $  (prepSymTabOffsets ((+) 1 $ sum $ map M.size sts) syt)
 
 popSymTab :: SIM SymbolTable
 popSymTab = do

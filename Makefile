@@ -18,6 +18,7 @@ clean:
 	rm -f *.o
 	rm -f malice2asm
 	rm -f *~
+	rm -rf autotest-results/
 
 .PHONY : tar
 tar:
@@ -29,3 +30,4 @@ test: malice2asm
 	./dotests.sh autotest/at-m2
 	./dotests.sh autotest/at-m2extra
 	./dotests.sh autotest/at-m2grad
+	./dotests.sh autotest/at-m3

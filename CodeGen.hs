@@ -79,12 +79,13 @@ cgCmp jt pdest p1 p2 = do
 
 
 cgLine :: LLcmd -> SIM String
-cgLine (LLDecl _ _) = do
+cgLine (LLDecl v _) = do
 --cgLine (LLDecl v t) = do
   --sts <- getSymTabs
   --st <- popSymTab
   --pushSymTab $ M.insert v (t, sum $ map M.size sts) st
-  return ""
+  initzero <- cgLine (LLCp (PVar v) (PImm 0))
+  return initzero
 cgLine (LLCp p1 p2) = do
   parms <- cgLL2Param p1 p2
   return $ "mov " ++ parms ++ "\n"
@@ -228,10 +229,13 @@ cgLine (LLCall fn)
 cgLine (LLLabel l)
   = return $ l ++ ":\n"
 cgLine (LLScope symtab ll) = do
-  pushSymTab symtab
+  localsyt <- scanSymTab symtab
+  cAlloc <- cgLine (LLSpSub $ fromIntegral (4 * (M.size symtab)))
+  cDealloc  <- cgLine (LLSpAdd $ fromIntegral (4 * (M.size symtab)))
+  pushSymTab localsyt
   c <- cgLL ll
   _ <- popSymTab
-  return c
+  return $ cAlloc ++ c ++ cDealloc
 cgLine (LLJmp l)
   = return $ "jmp " ++ l ++ "\n"
 cgLine (LLJmpZ l p1) = do
@@ -270,16 +274,17 @@ cgDA :: DeclarationAct -> SIM String
 --cgDA (Function symtab name arglist rettype body)
 cgDA (Function symtab name args _ body) = do
   putFuncName name
+  localsyt <- scanSymTab symtab
   pushSymTab $ funcArgsSymTab args
-  scanPushSymTab symtab
+  pushSymTab localsyt
   --pushSymTab M.empty
   putLabelCtr 0
   lBody <- llSL body
   cBody <- cgLL lBody -- have to do this first to calculate memory need
-  cSave <- cgLL llSave
-  cAlloc <- cgLine llAlloc
-  cDealloc  <- cgLine llDealloc
-  cRestore <- cgLL llRestore
+  cSave <- cgLL [LLPush (PReg 1)]
+  cAlloc <- cgLine (LLSpSub $ fromIntegral (4 * (M.size symtab)))
+  cDealloc  <- cgLine (LLSpAdd $ fromIntegral (4 * (M.size symtab)))
+  cRestore <- cgLL [LLPop (PReg 1)]
   _ <- popSymTab
   _ <- popSymTab
   return $ "\n"
@@ -298,11 +303,6 @@ cgDA (Function symtab name args _ body) = do
     ++ "pop ebp\n" 
     ++ cRestore
     ++ "ret\n"
-  where
-    llAlloc = (LLSpSub $ fromIntegral (4 * (M.size symtab)))
-    llDealloc = (LLSpAdd $ fromIntegral (4 * (M.size symtab)))
-    llSave = [LLPush (PReg 1)]
-    llRestore = [LLPop (PReg 1)]
 
 cgD :: Declaration -> SIM String
 --cgD (pos, (Function symtab name arglist rettype body))
