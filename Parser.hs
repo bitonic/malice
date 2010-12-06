@@ -42,6 +42,7 @@ TokenParser { identifier = p_varName
             , charLiteral = p_letter
             , parens = p_parens
             , lexeme = p_lexeme
+            , stringLiteral = p_stringLiteral
             } = makeTokenParser def
 
 p_identifier = try p_arrayEl
@@ -87,7 +88,7 @@ p_statement = try (p_comment >> p_statement') <|> p_statement'
       p_separator
       return ((sourceLine p, sourceColumn p), s)
 
-p_comment = p_quotedstring >> p_cstring "thought Alice" >> p_separator
+p_comment = p_stringLiteral >> p_cstring "thought Alice" >> p_separator
 
 -- Declaration statement
 p_declaration = do
@@ -210,7 +211,7 @@ infixOp op
 term = (lookAhead p_operator >> p_expr)
        <|> p_parens p_expr
        <|> try p_functioncall
-       <|> liftM String p_quotedstring
+       <|> liftM String p_stringLiteral
        <|> liftM Id p_identifier
        <|> liftM Char p_letter
        <|> liftM Int p_int32
@@ -219,24 +220,6 @@ p_functioncall = do
   f <- p_varName
   liftM (FunctionCall f) (p_parens $ sepBy p_expr p_separator);
 
-p_quotedstring = string "\"" >> manyTill anyEscChar (p_string "\"")    
-  
-anyEscChar = do
-  c <- anyChar
-  if c == '\\'
-    then (oneOf "0abfnrtv\"&'\\" >>= return . toEsc)
-    else return c
-  where
-    toEsc '0' = '\0'
-    toEsc 'a' = '\a'
-    toEsc 'b' = '\b'
-    toEsc 'f' = '\f'
-    toEsc 'n' = '\n'
-    toEsc 'r' = '\r'
-    toEsc 't' = '\t'
-    toEsc 'v' = '\v'
-    toEsc c = c
-    
 p_int32 = do
   int <- p_natural
   return (fromIntegral int :: Int32)

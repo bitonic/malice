@@ -1,4 +1,4 @@
-GHCFLAGS = -Wall -O2 --make -fno-warn-missing-signatures
+GHCFLAGS = -Wall -O2 --make -fno-warn-missing-signatures -fno-warn-unused-do-bind
 
 .PHONY : malice2asm
 malice2asm: libmalice.o
