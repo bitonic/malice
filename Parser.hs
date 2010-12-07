@@ -71,6 +71,7 @@ p_separator = try (p_string "too" >> p_separator')
 p_statement = try (p_comment >> p_statement') <|> p_statement'
   where
     p_statement' = do
+      many p_separator
       p <- getPosition
       s <- (try p_return
             <|> try (p_varName >>= p_declare)
