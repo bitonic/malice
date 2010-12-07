@@ -5,7 +5,5 @@ perhaps (var > 0) so
   "var is positive" said Alice.
 or maybe (var < 0) so
   "var is negative" said Alice.
-or
-  "var is zero" said Alice.
 Alice was unsure which. 
 "\n" spoke.

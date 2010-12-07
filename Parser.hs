@@ -68,25 +68,23 @@ p_separator = try (p_string "too" >> p_separator')
   where p_separator' = choice $ map p_string [ "and", "but", "then", ".", ",", "?"]
 
 -- Statement
-p_statement = try (p_comment >> p_statement') <|> p_statement'
-  where
-    p_statement' = do
-      many p_separator
-      p <- getPosition
-      s <- (try p_return
-            <|> try (p_varName >>= p_declare)
-            <|> try (p_varName >>= p_declarearray)
-            <|> try (p_identifier >>= p_incdec)
-            <|> try (p_identifier >>= p_assign)
-            <|> try p_print
-            <|> try p_get
-            <|> try p_until
-            <|> try p_changercall
-            <|> try (liftM FunctionCallS p_functioncall)
-            <|> p_ifelse
-            <?> "statement")
-      p_separator
-      return ((sourceLine p, sourceColumn p), s)
+p_statement = do
+  many (try p_comment)
+  many (try p_separator)
+  p <- getPosition
+  s <- (try p_return
+        <|> try (p_varName >>= p_declare)
+        <|> try (p_varName >>= p_declarearray)
+        <|> try (p_identifier >>= p_incdec)
+        <|> try (p_identifier >>= p_assign)
+        <|> try p_print
+        <|> try p_get
+        <|> try p_until
+        <|> try p_ifelse
+        <|> try p_changercall
+        <|> liftM FunctionCallS p_functioncall)
+  p_separator
+  return ((sourceLine p, sourceColumn p), s)
 
 p_comment = p_stringLiteral >> p_cstring "thought Alice" >> p_separator
 
@@ -127,23 +125,25 @@ p_until = do
   p_string "because"
   liftM (Until empty e) $ manyTill p_statement $ try (p_cstring "enough times")
 
-p_ifelse = do 
+p_ifelse = do
   (p_string "perhaps" <|> p_string "either")
   e <- p_expr
   p_string "so"
-  s <- many p_statement
-  rest <- manyTill elseifs $ try (
-    try (p_string "or" >> notFollowedBy (p_string "maybe" >> return 'x'))
-    <|> end)
-  finalOr <- optionMaybe (manyTill p_statement (try end))
-  case finalOr of
-    Just s' -> return $ IfElse $ [(empty, e, s)] ++ rest ++ [(empty, Int 1, s')]
-    Nothing -> return $ IfElse $ (empty, e, s) : rest
+  sl <- statements
+  triplet [(empty, e, sl)] >>= return . IfElse
   where
-    elseifs =
-      liftM2 ((,,) empty) (p_cstring "or maybe" >> (p_expr <* p_string "so")) (many p_statement)
+    triplet now = try (end >> return now) <|> try (ifelse now) <|> elseblock now
+    statements = manyTill p_statement $ try (try (lookAhead (p_string "or") >> return ())
+                                             <|> (lookAhead end))
     end = p_cstring "Alice was unsure" >> optional (p_string "which")
-
+    ifelse now = do
+      p_cstring "or maybe"
+      e <- p_parens p_expr <* p_string "so"
+      sl <- statements
+      triplet (now ++ [(empty, e, sl)])
+    elseblock now =
+      liftM (((++) now) . (: []) . ((,,) empty (Int 1))) (p_string "or" >> (statements <* end))
+      
 p_function = do
   p_white
   p_cstring "The room"
