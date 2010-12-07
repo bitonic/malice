@@ -53,9 +53,6 @@ data LLcmd
      | LLRet
      | LLSpSub Immediate
      | LLSpAdd Immediate
---     | LLPush Register
---     | LLPushImm Immediate
---     | LLPop Register
      | LLPush LLParam
      | LLPop LLParam
      | LLSrcLine Immediate
@@ -191,6 +188,9 @@ llSA (Return exp1) = do
 llSA (Print (String str)) = do
   fc <- (llExp (FunctionCall "_print_string" [String str]) 0)
   return fc
+llSA (Print (Char c)) = do
+  fc <- (llExp (FunctionCall "_print_char" [Char c]) 0)
+  return fc
 llSA (Print exp1) = do
   e1 <- (llExp (optimiseExpr exp1) 0)
   fc <- (llExp (FunctionCall "_print_int" []) 0)
@@ -201,9 +201,8 @@ llSA (Get (SingleElement var)) = do
 llSA (Get (ArrayElement _ _)) = do
   epos <- showCodePos
   error $ epos ++ "Cannot read a whole array"
-llSA (FunctionCallS fc@(FunctionCall _ _)) = do
-  e <- llExp fc 0
-  return e
+llSA (FunctionCallS fc@(FunctionCall _ _))
+  = llExp fc 0
 llSA (FunctionCallS _) = do
   epos <- showCodePos
   error $ epos ++ "Cannot call an expression that is not a FunctionCall"

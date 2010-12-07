@@ -35,6 +35,31 @@ ret
 
 
 
+; PRINTING function for CHARS (8-bit in 32-bit, LSB in Intel byte order)
+
+global _print_char
+_print_char:	; void printChar(int char)
+push eax	; will be: syscall number
+push ebx 	; will be: stdout fd
+push ecx 	; will be: character start address
+push edx	; will be: character counter
+
+mov  edx, 1	; print one char
+lea  ecx, [esp+20]	; address of the char
+mov  ebx, 1	; stdout fd
+mov  eax, 4	; write()
+int 0x80
+
+pop edx
+pop ecx
+pop ebx
+pop eax
+ret
+
+
+
+
+
 ; PRINTING function for STRINGS (8-bit)
 
 global _print_string
