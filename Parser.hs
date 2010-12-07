@@ -130,11 +130,11 @@ p_ifelse = do
   e <- p_expr
   p_string "so"
   sl <- statements
-  triplet [(empty, e, sl)] >>= return . IfElse
+  fmap IfElse (triplet [(empty, e, sl)])
   where
     triplet now = try (end >> return now) <|> try (ifelse now) <|> elseblock now
     statements = manyTill p_statement $ try (try (lookAhead (p_string "or") >> return ())
-                                             <|> (lookAhead end))
+                                             <|> lookAhead end)
     end = p_cstring "Alice was unsure" >> optional (p_string "which")
     ifelse now = do
       p_cstring "or maybe"
@@ -142,7 +142,7 @@ p_ifelse = do
       sl <- statements
       triplet (now ++ [(empty, e, sl)])
     elseblock now =
-      liftM (((++) now) . (: []) . ((,,) empty (Int 1))) (p_string "or" >> (statements <* end))
+      liftM ((now ++) . (: []) . (,,) empty (Int 1)) (p_string "or" >> (statements <* end))
       
 p_function = do
   p_white
