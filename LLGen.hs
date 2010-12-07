@@ -40,6 +40,7 @@ data LLcmd
      | LLDec LLParam
      | LLInc LLParam
      | LLNot LLParam
+     | LLNeg LLParam
      | LLClt LLParam LLParam
      | LLCgt LLParam LLParam
      | LLCle LLParam LLParam
@@ -92,7 +93,7 @@ llBinOp op = error ("llBinOp: Invalid operand encountered: " ++ op)
 
 llUnOp :: Operand -> LLParam -> LLcmd
 llUnOp "~" = LLNot
-llUnOp "-" = error "Implement EXP -"
+llUnOp "-" = LLNeg
 llUnOp op = error $ "llUnOp: Invalid operand encountered: " ++ op
 
 truncates32tou8 :: Immediate -> Immediate
@@ -115,12 +116,31 @@ llExp (BinOp op exp1 exp2) destreg = do
   e1 <- (llExp exp1 destreg)
 --  e2 <- (llExp exp2 (succ destreg))
   e2 <- (llExp exp2 destreg)
+  lblcnt <- uniqLabel
+  lblend <- uniqLabel
   return $ e1
     ++ [LLPush (PReg destreg)]
+    ++ (if (op == "&&")
+        then [LLJmpNZ lblcnt (PReg destreg),
+             LLSpAdd 4,
+             LLCp (PReg destreg) (PImm 0),
+             LLJmp lblend,
+             LLLabel lblcnt]
+        else [])
+    ++ (if (op == "||")
+        then [LLJmpZ lblcnt (PReg destreg),
+             LLSpAdd 4,
+             LLCp (PReg destreg) (PImm 1),
+             LLJmp lblend,
+             LLLabel lblcnt]
+        else [])
     ++ e2
     ++ [LLCp (PReg (succ destreg)) (PReg destreg)]
     ++ [LLPop (PReg destreg)]
     ++ [llBinOp op (PReg destreg) (PReg (succ destreg))]
+    ++ (if (op == "&&" || op == "||")
+        then [LLLabel lblend]
+        else [])
 llExp (UnOp op (Int imm)) destreg
   = return $ [LLCp (PReg destreg) (PImm (evalUnOp op imm))]
 llExp (UnOp op exp1) destreg = do
