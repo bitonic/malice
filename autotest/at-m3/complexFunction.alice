@@ -13,6 +13,9 @@ The room complexFunction ( number p, number q ) contained a number
 
   z was a number and z became 0.
   i became 0.
+  
+  v became 0.
+  w became 0.
 
   eventually ( i == p ) because
 
