@@ -4,6 +4,7 @@ module Parser
        ) where
 
 import Common
+import Data.Char ( isSpace )
 import Data.Int ( Int32 )
 import Data.Map ( empty )
 import Control.Monad ( liftM, liftM2 )
@@ -21,7 +22,7 @@ operators = ["+", "-", "*", "/", "%", "^", "&", "|", "~",
 
 def = emptyDef { identStart = letter
                , identLetter = alphaNum <|> char '_'
-               , opStart = oneOf $ concatMap (\o -> [head o]) operators
+               , opStart = oneOf $ concatMap ((: []) . head) operators
                , opLetter = oneOf $ concat operators
                , reservedOpNames = operators
                , reservedNames = ["and", "but", "then", ".",
@@ -65,27 +66,25 @@ mainparser f = do
 p_separator = try (p_string "too" >> p_separator')
               <|> p_separator'
               <?> "statement separator"
-  where p_separator' = choice $ map p_string [ "and", "but", "then", ".", ",", "?"]
+  where p_separator' = choice $ map p_string [ "and", "but", "then ", ".", ",", "?"]
 
 -- Statement
-p_statement = do
-  many (try p_comment)
-  many (try p_separator)
-  p <- getPosition
-  s <- (try p_return
-        <|> try (p_varName >>= p_declare)
-        <|> try (p_varName >>= p_declarearray)
-        <|> try (p_identifier >>= p_incdec)
-        <|> try (p_identifier >>= p_assign)
-        <|> try p_print
-        <|> try p_get
-        <|> try p_until
-        <|> try p_ifelse
-        <|> try p_changercall
-        <|> liftM FunctionCallS p_functioncall)
-  p_separator
-  return ((sourceLine p, sourceColumn p), s)
-
+p_statement =
+  liftM2 (\p s -> ((sourceLine p, sourceColumn p), s)) getPosition (st <* p_separator)
+  where st = try p_return
+             <|> try (p_varName >>= p_declare)
+             <|> try (p_varName >>= p_declarearray)
+             <|> try (p_identifier >>= p_incdec)
+             <|> try (p_identifier >>= p_assign)
+             <|> try p_print
+             <|> try p_get
+             <|> try p_until
+             <|> try p_ifelse
+             <|> try p_changercall
+             <|> try (liftM FunctionCallS p_functioncall)
+             <|> try (many1 (try p_comment) >> st)
+             <|> (many1 p_separator >> st)
+  
 p_comment = p_stringLiteral >> p_cstring "thought Alice" >> p_separator
 
 -- Declaration statement
