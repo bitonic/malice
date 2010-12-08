@@ -64,12 +64,13 @@ mainparser f = do
 
 p_separator = try (p_string "too" >> p_separator')
               <|> p_separator'
-              <?> "statement separator"
-  where p_separator' = choice $ map p_string [ "and", "but", "then ", ".", ",", "?"]
+  where p_separator' = choice (map p_string [ "and", "but", "then ", ".", ",", "?"])
+                       <?> "statement separator"
 
 -- Statement
 p_statement =
-  liftM2 (\p s -> ((sourceLine p, sourceColumn p), s)) getPosition (st <* p_separator)
+  liftM2 (\p s -> ((sourceLine p, sourceColumn p), s)) getPosition (
+    st <* (p_separator >> many (try p_separator)))
   where st = try p_return
              <|> try (p_varName >>= p_declare)
              <|> try (p_varName >>= p_declarearray)
@@ -83,7 +84,7 @@ p_statement =
              <|> try (liftM FunctionCallS p_functioncall)
              <|> try (many1 (try p_comment) >> st)
              <|> (many1 p_separator >> st)
-  
+
 p_comment = p_stringLiteral >> p_cstring "thought Alice" >> p_separator
 
 -- Declaration statement
@@ -159,6 +160,7 @@ p_changer = do
   p_cstring "changed a"
   t <- p_type
   sl <- manyTill (lookAhead (notFollowedBy (p_return >> return 'x')) >> p_statement) p_nextfunction
+  many p_separator
   return $ Function empty name [("it", t)] t (sl ++
                                               [((0,0), Return (Id (SingleElement "it")))])
   
