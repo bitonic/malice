@@ -50,9 +50,9 @@ p_identifier = try p_arrayEl
                <?> "identifier"
 p_arrayEl = do
   var <- p_varName
-  p_string "'s"
+  p_stringS "'s"
   pos <- p_expr
-  p_string "piece"
+  p_stringS "piece"
   return (ArrayElement var pos)
 
 -- Actual parser
@@ -63,7 +63,7 @@ mainparser f = do
   ds <- manyTill p_declaration eof
   return (AST f (((0,0), Function empty mainFunction [] MaliceInt sl) : ds))
 
-p_separator = try (p_string "too" >> (p_separatorNoSpace <|> p_separatorSpace))
+p_separator = try (p_stringSS "too" >> (p_separatorNoSpace <|> p_separatorSpace))
               <|> p_separatorNoSpace <|> p_separatorSpace <?> "statement separator"
 p_separatorNoSpace = choice $ map p_string [".", ",", "?"]
 p_separatorSpace = choice $ map p_stringS ["and", "but", "then"]
@@ -94,51 +94,51 @@ p_declaration = do
   d <- (try p_function <|> p_changer)
   return ((sourceLine p, sourceColumn p), d)
 
-p_return = p_cstring "Alice found" >> liftM Return p_expr
+p_return = p_cstringS "Alice found" >> liftM Return p_expr
 
-p_incdec v = choice [ p_string "ate" >> return (Increase v)
-                    , p_string "drank" >> return (Decrease v)
+p_incdec v = choice [ p_stringSS "ate" >> return (Increase v)
+                    , p_stringSS "drank" >> return (Decrease v)
                     ]
 
 p_declare v = do
-  p_cstring "was a"
+  p_cstringS "was a"
   liftM (flip Declare v) p_type
 
 p_declarearray v = do
-  p_string "had"
+  p_stringS "had"
   size <- p_expr
   t <- p_type
   return (Declare (MaliceArraySize t size) v)
   
-p_assign v = p_string "became" >> liftM (Assign v) p_expr
+p_assign v = p_stringS "became" >> liftM (Assign v) p_expr
 
 p_print = liftM Print (p_expr <*
-                       (try (p_cstring "spoke")
-                        <|> p_cstring "said Alice"))
+                       (try (p_stringSS "spoke")
+                        <|> p_cstringSS "said Alice"))
 
-p_get = p_cstring "what was" >> liftM Get p_identifier
+p_get = p_cstringS "what was" >> liftM Get p_identifier
 
 -- Composite statements
 p_until = do
   p_string "eventually"
   e <- p_parens p_expr
-  p_string "because"
-  liftM (Until empty e) $ manyTill p_statement $ try (p_cstring "enough times")
+  p_stringS "because"
+  liftM (Until empty e) $ manyTill p_statement $ try (p_cstringSS "enough times")
 
 p_ifelse = do
   (p_string "perhaps" <|> p_string "either")
   e <- p_expr
-  p_string "so"
+  p_stringS "so"
   sl <- statements
   fmap IfElse (triplet [(empty, e, sl)])
   where
     triplet now = try (ifelse now) <|> try (elseblock now) <|> (end >> return now)
-    statements = manyTill p_statement $ try (try (p_string "or" >> return ())
+    statements = manyTill p_statement $ try (try (p_stringS "or" >> return ())
                                              <|> lookAhead end)
-    end = p_cstring "Alice was unsure" >> optional (p_string "which")
+    end = p_cstringSS "Alice was unsure" >> optional (p_stringSS "which")
     ifelse now = do
       p_string "maybe"
-      e <- p_parens p_expr <* p_string "so"
+      e <- p_parens p_expr <* p_stringS "so"
       sl <- statements
       triplet (now ++ [(empty, e, sl)])
     elseblock now =
@@ -149,7 +149,7 @@ p_function = do
   p_cstring "The room"
   name <- p_varName
   args <-  p_parens $ sepBy (liftM2 (flip (,)) p_type p_varName) (p_string ",")
-  p_cstring "contained a"
+  p_cstringS "contained a"
   ret <- p_type
   sl <- manyTill p_statement p_nextfunction
   return $ Function empty name args ret sl
@@ -158,7 +158,7 @@ p_changer = do
   p_white
   p_cstring "The Looking-Glass"
   name <- p_varName
-  p_cstring "changed a"
+  p_cstringS "changed a"
   t <- p_type
   sl <- manyTill (lookAhead (notFollowedBy (p_return >> return 'x')) >> p_statement) p_nextfunction
   many p_separator
@@ -171,17 +171,17 @@ p_nextfunction =
 
 p_changercall = do
   var <- p_identifier
-  p_cstring "went through"
+  p_cstringS "went through"
   function <- p_varName
   return (Assign var (FunctionCall function [Id var]))
 
 p_type =
-  try (liftM MaliceArray (p_string "spider" >> p_type'))
+  try (liftM MaliceArray (p_stringS "spider" >> p_type'))
   <|> p_type'
   where
-    p_type' = liftM stringToType (p_string "number"
-                                  <|> p_string "letter"
-                                  <|> p_string "sentence"
+    p_type' = liftM stringToType (p_stringSS "number"
+                                  <|> p_stringSS "letter"
+                                  <|> p_stringSS "sentence"
                                   <?> "type")
          
 -- Expression
@@ -230,10 +230,12 @@ p_stringSS s = p_lexeme (string s <* ((p_1white >> return ())
 
 p_cstring = p_cstringGen p_string
 p_cstringS = p_cstringGen p_stringS
-p_cstringGen p s = (mapM (\s -> p_lexeme (string s <* p_1white)) start >> p end) >> return s
+p_cstringSS = p_cstringGen p_stringSS
+p_cstringGen p s = (mapM lexeme1 start >> p end) >> return s
   where end = last ws 
         start = init ws
         ws = words s
+        lexeme1 x = p_lexeme (string x <* p_1white)
 
 p <* q = p >>= (\x -> q >> return x)
 
