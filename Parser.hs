@@ -4,7 +4,6 @@ module Parser
        ) where
 
 import Common
-import Data.Char ( isSpace )
 import Data.Int ( Int32 )
 import Data.Map ( empty )
 import Control.Monad ( liftM, liftM2 )
@@ -59,7 +58,7 @@ p_arrayEl = do
 mainparser :: String -> Parser AST
 mainparser f = do
   p_white 
-  sl <- manyTill p_statement (try $ lookAhead ((p_cstring "The" >> return ()) <|> eof))
+  sl <- manyTill p_statement p_nextfunction
   ds <- manyTill p_declaration eof
   return (AST f (((0,0), Function empty mainFunction [] MaliceInt sl) : ds))
 
@@ -166,7 +165,6 @@ p_changer = do
 p_nextfunction =
   eof
   <|> (try (lookAhead (p_white >> p_string "The")) >> return ())
-  <?> "function or Looking-Glass declaration"
 
 p_changercall = do
   var <- p_identifier
