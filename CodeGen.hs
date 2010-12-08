@@ -45,7 +45,7 @@ cgLLParam :: LLParam -> SIM String
 cgLLParam (PVar v) = do
   sym <- lookupSym v
   return $ case sym of
-    Just (_, vid) -> "dword [ebp+" ++ (show (vid * (-4))) ++ "]"
+    Just (_, vid) -> "[ebp+" ++ (show (vid * (-4))) ++ "]"
     Nothing -> error $ "Variable " ++ v ++ " has not been defined (yet)."
 cgLLParam (PReg r)
   = return $ registerName r
