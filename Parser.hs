@@ -4,6 +4,7 @@ module Parser
        ) where
 
 import Common
+import Data.Char ( isSpace )
 import Data.Int ( Int32 )
 import Data.Map ( empty )
 import Control.Monad ( liftM, liftM2 )
@@ -62,10 +63,10 @@ mainparser f = do
   ds <- manyTill p_declaration eof
   return (AST f (((0,0), Function empty mainFunction [] MaliceInt sl) : ds))
 
-p_separator = try (p_string "too" >> p_separator')
-              <|> p_separator'
-  where p_separator' = choice (map p_string [ "and", "but", "then ", ".", ",", "?"])
-                       <?> "statement separator"
+p_separator = try (p_string "too" >> (p_separatorNoSpace <|> p_separatorSpace))
+              <|> p_separatorNoSpace <|> p_separatorSpace <?> "statement separator"
+p_separatorNoSpace = choice $ map p_string [".", ",", "?"]
+p_separatorSpace = choice $ map p_stringS ["and", "but", "then"]
 
 -- Statement
 p_statement =
@@ -223,10 +224,20 @@ p_operator = choice $ map p_string operators
 
 -- Utils
 p_string = p_lexeme . string
+p_stringS s = p_lexeme (string s <* p_1white)
+p_stringSS s = p_lexeme (string s <* ((p_1white >> return ())
+                                      <|> (lookAhead p_separatorNoSpace >> return ())))
 
-p_cstring = mapM p_string . words
+p_cstring = p_cstringGen p_string
+p_cstringS = p_cstringGen p_stringS
+p_cstringGen p s = (mapM (\s -> p_lexeme (string s <* p_1white)) start >> p end) >> return s
+  where end = last ws 
+        start = init ws
+        ws = words s
 
 p <* q = p >>= (\x -> q >> return x)
+
+p_1white = satisfy $ isSpace
 
 -- parser from string
 maliceParser :: String -> String -> Either ParseError AST
