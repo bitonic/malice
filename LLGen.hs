@@ -191,6 +191,15 @@ llSA (Print (String str)) = do
 llSA (Print (Char c)) = do
   fc <- (llExp (FunctionCall "_print_char" [Char c]) 0)
   return fc
+llSA (Print (Id (SingleElement v))) = do
+  Just (vt, _) <- lookupSym v
+  fc <- (llExp (FunctionCall (case vt of
+                              MaliceChar -> "_print_char"
+                              MaliceString -> "_print_string"
+                              MaliceInt -> "_print_int"
+                              _ -> error $ "Cannot print a " ++ (show vt)
+                             ) []) 0)
+  return $ [LLPush (PVar v)] ++ fc ++ [LLSpAdd 4]
 llSA (Print exp1) = do
   e1 <- (llExp (optimiseExpr exp1) 0)
   fc <- (llExp (FunctionCall "_print_int" []) 0)
