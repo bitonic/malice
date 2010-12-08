@@ -38,19 +38,20 @@ registerName 2 = "ecx"
 registerName 3 = "edx"
 registerName 4 = "esi"
 registerName 5 = "edi"
-registerName r = error ("Error: Register index too high (" ++ (show r) ++ "). This really should not happen...")
+registerName r = error ("Error: Register index too high (" ++
+                        show r ++ "). This really should not happen...")
 
 
 cgLLParam :: LLParam -> SIM String
 cgLLParam (PVar v) = do
   sym <- lookupSym v
   return $ case sym of
-    Just (_, vid) -> "dword [ebp+" ++ (show (vid * (-4))) ++ "]"
+    Just (_, vid) -> "dword [ebp+" ++ show (vid * (-4)) ++ "]"
     Nothing -> error $ "Variable " ++ v ++ " has not been defined (yet)."
 cgLLParam (PReg r)
   = return $ registerName r
 cgLLParam (PImm i)
-  = return $ "dword " ++ (show i)
+  = return $ "dword " ++ show i
 cgLLParam (PStr _)
   = error "cgLLParam: At this stage there should be no PStr left."
 cgLLParam (PLbl l)
@@ -79,13 +80,11 @@ cgCmp jt pdest p1 p2 = do
 
 
 cgLine :: LLcmd -> SIM String
-cgLine (LLDecl v _) = do
+cgLine (LLDecl v _) = cgLine (LLCp (PVar v) (PImm 0))
 --cgLine (LLDecl v t) = do
   --sts <- getSymTabs
   --st <- popSymTab
   --pushSymTab $ M.insert v (t, sum $ map M.size sts) st
-  initzero <- cgLine (LLCp (PVar v) (PImm 0))
-  return initzero
 cgLine (LLCp p1 p2) = do
   parms <- cgLL2Param p1 p2
   return $ "mov " ++ parms ++ "\n"
@@ -103,23 +102,23 @@ cgLine (LLDiv (PReg r1) (PReg r2))
 -- To be fixed later with register allocation.
   = return $ "push eax\n"
     ++ "push edx\n"
-    ++ "mov eax, " ++ (registerName r1) ++ "\n"
+    ++ "mov eax, " ++ registerName r1 ++ "\n"
     ++ "mov edx, 0\n"
-    ++ "idiv " ++ (registerName r2) ++ "\n"
-    ++ "mov " ++ (registerName r1) ++ ", eax\n"
-    ++ (if (r1 /= 3) then "pop edx\n" else "add esp, 4\n")
-    ++ (if (r1 /= 0) then "pop eax\n" else "add esp, 4\n")
+    ++ "idiv " ++ registerName r2 ++ "\n"
+    ++ "mov " ++ registerName r1 ++ ", eax\n"
+    ++ if r1 /= 3 then "pop edx\n" else "add esp, 4\n"
+    ++ if r1 /= 0 then "pop eax\n" else "add esp, 4\n"
 cgLine (LLMod (PReg r1) (PReg r2))
 -- WARNING: If r1 == 3 and r2 == 0 we will have loss of information...
 -- To be fixed later with register allocation.
   = return $ "push eax\n"
     ++ "push edx\n"
-    ++ "mov eax, " ++ (registerName r1) ++ "\n"
+    ++ "mov eax, " ++ registerName r1 ++ "\n"
     ++ "mov edx, 0\n"
-    ++ "idiv " ++ (registerName r2) ++ "\n"
-    ++ "mov " ++ (registerName r1) ++ ", edx\n"
-    ++ (if (r1 /= 3) then "pop edx\n" else "add esp, 4\n")
-    ++ (if (r1 /= 0) then "pop eax\n" else "add esp, 4\n")
+    ++ "idiv " ++ registerName r2 ++ "\n"
+    ++ "mov " ++ registerName r1 ++ ", edx\n"
+    ++ if r1 /= 3 then "pop edx\n" else "add esp, 4\n"
+    ++ if r1 /= 0 then "pop eax\n" else "add esp, 4\n"
 cgLine (LLDiv (PReg r1) (PImm imm)) = do
   c <- cgLL [
       (LLCp (PReg (succ r1)) (PImm imm)),

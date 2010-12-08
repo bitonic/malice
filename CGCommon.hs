@@ -12,7 +12,7 @@ module CGCommon
 
 import Common
 import Data.Int (Int32)
-import Char ( ord )
+import Data.Char ( ord )
 --import Data.Map ( Map )
 import Data.Maybe
 import qualified Data.Map as M
@@ -64,7 +64,7 @@ pushSymTab syt = do
 scanSymTab :: SymbolTable -> SIM SymbolTable
 scanSymTab syt = do
   sts <- getSymTabs
-  return $  (prepSymTabOffsets ((+) 1 $ sum $ map M.size sts) syt)
+  return $ prepSymTabOffsets ((+) 1 $ sum $ map M.size sts) syt
 
 popSymTab :: SIM SymbolTable
 popSymTab = do
@@ -82,17 +82,17 @@ lookupSym v = do
 prepSymTabOffsets' :: Int -> [(Variable, (MaliceType, Int))] ->  [(Variable, (MaliceType, Int))]
 prepSymTabOffsets' _ []
   = []
-prepSymTabOffsets' num ( (v, (t, _)) : ss )
+prepSymTabOffsets' num ((v, (t, _)) : ss)
   = (v, (t, num)) : prepSymTabOffsets' (succ num) ss
 
 prepSymTabOffsets :: Int -> SymbolTable -> SymbolTable
-prepSymTabOffsets startid = M.fromList . (prepSymTabOffsets' startid) . M.toAscList
+prepSymTabOffsets startid = M.fromList . prepSymTabOffsets' startid . M.toAscList
 
 funcArgsSymTab' :: FunctionArgs -> SymbolTable -> SymbolTable
 funcArgsSymTab' [] st
   = st
 funcArgsSymTab' ((v, t) : xs) st
-  = funcArgsSymTab' xs (M.insert v (t, (-3) - (length xs) ) st)
+  = funcArgsSymTab' xs (M.insert v (t, (-3) - length xs) st)
 
 funcArgsSymTab :: FunctionArgs -> SymbolTable
 funcArgsSymTab fa
@@ -112,10 +112,10 @@ putStrTab stt = do
 uniqStr :: String -> SIM Label
 uniqStr str = do
   stt <- getStrTab
-  sid <- return $ length stt
+  let sid = length stt
 --  fn <- getFunName
   putStrTab $ (sid, str) : stt
-  return $ "_str_" ++ (show sid)
+  return $ "_str_" ++ show sid
 
 
 getCodePos :: SIM (Int, Int)
@@ -131,7 +131,7 @@ putCodePos cp = do
 showCodePos :: SIM String
 showCodePos = do
   (line, col) <- getCodePos
-  return $ "In line " ++ (show line) ++ ":" ++ (show col) ++ ": "
+  return $ "In line " ++ show line ++ ":" ++ show col ++ ": "
 
 
 getLabelCtr :: SIM Int
@@ -149,12 +149,12 @@ uniqLabel = do
   fn <- getFuncName
   lc <- getLabelCtr
   putLabelCtr (lc + 1)
-  return $ "_" ++ fn ++ "_" ++ (show lc)
+  return $ "_" ++ fn ++ "_" ++ show lc
 
 strToAsm s = "\"" ++ strToAsm' s ++ "\",0"
   where
     strToAsm' [] = []
     strToAsm' (c : s')
-      | elem c escapedChars = "\"," ++ show (ord c) ++ ",\"" ++ strToAsm' s'
+      | c `elem` escapedChars = "\"," ++ show (ord c) ++ ",\"" ++ strToAsm' s'
       | otherwise           = c : strToAsm' s'
     escapedChars = "\0\a\b\f\n\r\t\v\"\&\'\\"
