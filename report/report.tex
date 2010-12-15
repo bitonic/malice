@@ -1,0 +1,132 @@
+\documentclass{article}
+\usepackage{fullpage}
+
+\usepackage{enumerate}
+\usepackage{listings}
+\usepackage{courier}
+\lstloadlanguages{Java}
+\lstset{
+  basicstyle=\footnotesize\ttfamily,
+  numberstyle=\tiny,         
+  numbersep=5pt,             
+  tabsize=2,                 
+  extendedchars=true,        
+  breaklines=true,           
+  keywordstyle=\color{red},
+  frame=b,         
+  stringstyle=\color{white}\ttfamily,
+  showspaces=false,           
+  showtabs=false,             
+  xleftmargin=17pt,
+  framexleftmargin=17pt,
+  framexrightmargin=5pt,
+  framexbottommargin=4pt,
+  showstringspaces=false,
+  numbers=left,
+}
+
+\begin{document}
+
+\title{The Glorious MAlice Compiler}
+
+\author{Francesco Mazzoli - fm2209\\Maximilian Staudt - ms9109}
+
+\maketitle
+
+We chose to write our compiler in Haskell, targeting the Intel x86
+32bit architecture. We tried to keep the code as clean and concise as
+possible, and as a result the line count is just below 2000 lines.\\
+This section is an overview to what the compiler does and how.
+
+We had to define our own specification, following the examples
+provided. In deciding what is valid and what is not we tried both to
+be reasonable while following the idea of an English language-like
+code.
+
+This is probably the coursework on which we spent more time on so far,
+and we had to make a lot of decisions on various fields, but overall
+it was a very rewarding experience.
+
+\section{Haskell}
+We chose Haskell for this project. We love Haskell, and after rapidly
+looking at the available libraries we thought that it was a sane
+choice. It turned out to be a great decision, especially after
+discovering Parsec.
+
+Parsec is a monadic parser combinator library for Haskell. Writing a
+parser in Parsec eliminates the need of having a lexer that processes
+the text, and has the huge advantage of enabling you to write the
+parser without the need to use file with a different syntax (like you
+have to do when using lex+yacc) and regular expressions.\\ While this
+is the biggest advantage in our opinion, there is a lot more to
+Parsec, for example error reporting.
+
+The code makes extensive use of monads. Parsec is monadic, the type
+checker makes use of the Error monad combinator with the state as the
+inner monad, and the IR and Code generators both use a state monad.
+
+\section{Code structure}
+
+\subsection{Data types}
+The base of the code is the \textbf{\texttt{AST} (Abstract Syntax
+  Tree)} data type. This data type is present in the compiling process
+up to the IR generation. The \texttt{AST} contains the name of the
+file and a list of function declarations. To simplify the
+\texttt{AST}, the unbounded code that does not belong to any functions
+in the .alice files is stored in a special function named
+\texttt{\_main}, that will be executed automatically.
+
+The \textbf{function declaration} (data type \texttt{Declaration})
+brings the function name, the function arguments names and types, the
+return type, a symbol table and the actual body of the function, in
+the form of a \textbf{statement list}.
+
+Each \textbf{statement} (data type \texttt{Statement}) contains the
+position in the file on which the statement starts, and the statement
+in itself. There are a total of 10 possible statements, 2 of which
+contain another statement list (if-else and loop). Those ``composite''
+statements have one or more symbol tables attached, since they have a
+inner scope.
+
+Values of any type are represented by the data type
+\textbf{\texttt{Expr}}. The expression can be formed by:
+\begin{itemize}
+\item an operation involving a binary or a unary operator that operate on other expressions
+\item an immediate value, either a number, a character or a string
+\item an identifier, that represents a value in memory.
+\end{itemize}
+An \textbf{identifier} (data type \texttt{Identifier}) either refers
+to a simple variable or to an element in an array.
+
+All these data types are defined in the file \texttt{Common.hs}.
+
+After the \texttt{AST} arrives to the IR generation it gets converted
+to 
+
+\subsection{Parser}
+
+
+\section{The type system}
+For what concerns the type system, we have four types in MAlice:
+\textbf{numbers}, \textbf{letters}, \textbf{sentences} and
+\textbf{spiders}.
+
+
+Numbers and letters are quite straightforward. In the implementation
+both types are implemented as 32 bit integers. Spiders TODO.
+
+Sentences are more tricky. We thought of treating sentences as arrays
+of characters, but there would have been a lot of problems with bound
+checking, apart from the fact that we already have array of characters
+for that purpose. So we decided to store the sentences in the code in
+the \emph{data} section of the assembler code. This has the
+inconvenient that it is not possible to get sentences from input,
+since they are not stored in memory.
+
+\section{The syntax}
+
+\subsection{File structure}
+\subsection{Statements}
+
+
+\end{document}
