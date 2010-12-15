@@ -23,14 +23,17 @@ type Operand = String
 type Register = Int
 type Variable = String
 type Immediate = Int32
+
+type FunctionName = Label
 type Label = String
+type LabelCounter = Int
 
 
 --type StringTable = Map Int String
 type StringTable = [(Int, String)]
 
 
-type ScopeInfo = (String, [SymbolTable], StringTable, (Int, Int), Int)
+type ScopeInfo = (FunctionName, [SymbolTable], StringTable, Position, LabelCounter)
 -- ScopeInfo Monad
 type SIM = State ScopeInfo
 
