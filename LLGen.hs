@@ -16,99 +16,89 @@ import Data.Char
 --data VarValue = Imm Immediate
 --data VarInfo = SVar VarOffset VarValue
 
-data LLParam = PVar Variable
-             | PReg Register
-             | PImm Immediate
-             | PLbl Label
-             | PStr String
+data LLparam = Pvar Variable
+             | Preg Register
+             | Pimm Immediate
+             | Plbl Label
+--           | PStr String
              deriving (Show, Eq)
 
 
-data LLcmd
-     = LLDecl Variable MaliceType
---Copy Dest Src
-     | LLCp LLParam LLParam
---Set Dest value
-     | LLAdd LLParam LLParam
-     | LLSub LLParam LLParam
-     | LLMul LLParam LLParam
-     | LLDiv LLParam LLParam
-     | LLMod LLParam LLParam
-     | LLAnd LLParam LLParam
-     | LLOr LLParam LLParam
-     | LLXOr LLParam LLParam
-     | LLDec LLParam
-     | LLInc LLParam
-     | LLNot LLParam
-     | LLNeg LLParam
-     | LLClt LLParam LLParam
-     | LLCgt LLParam LLParam
-     | LLCle LLParam LLParam
-     | LLCge LLParam LLParam
-     | LLCeq LLParam LLParam
-     | LLCneq LLParam LLParam
-     | LLCand LLParam LLParam
-     | LLCor LLParam LLParam
---Return: Have the return value ready in register 0!
-     | LLRet
-     | LLSpSub Immediate
-     | LLSpAdd Immediate
-     | LLPush LLParam
-     | LLPop LLParam
-     | LLSrcLine Immediate
-     | LLCall String
-     | LLLabel Label
-     | LLScope SymbolTable [LLcmd]
-     | LLJmp Label
-     | LLJmpZ Label LLParam
-     | LLJmpNZ Label LLParam
-     deriving (Show, Eq)
+data LLcmd = LLcmd LLop LLparams
+           | LLscope SymbolTable [LLcmd]
+
+data LLparams = One LLparam | Two LLparam LLparam | Zero
+
+data LLop = OPadd
+          | OPdecl
+          | OPcp
+          | OPsub
+          | OPmul
+          | OPdiv
+          | OPmod
+          | OPand
+          | OPor
+          | OPxor
+          | OPdec
+          | OPinc
+          | OPnot
+          | OPneg
+          | OPclt
+          | OPcgt
+          | OPcle
+          | OPcge
+          | OPceq
+          | OPcneq
+          | OPcand
+          | OPcor
+          | OPret
+          | OPspsub
+          | OPspadd
+          | OPpush
+          | OPpop
+          | OPsrcline
+          | OPcall
+          | OPlabel
+          | OPjmp
+          | OPjmpz
+          | OPjmpnz
+          deriving (Show, Eq)
+            
 
 
-
-
-
-
-llBinOp :: Operand -> LLParam -> LLParam -> LLcmd
-llBinOp "+" = LLAdd
-llBinOp "-" = LLSub
-llBinOp "*" = LLMul
-llBinOp "/" = LLDiv
-llBinOp "%" = LLMod
-llBinOp "&" = LLAnd
-llBinOp "|" = LLOr
-llBinOp "^" = LLXOr
-llBinOp "<" = LLClt
-llBinOp ">" = LLCgt
-llBinOp "<=" = LLCle
-llBinOp ">=" = LLCge
-llBinOp "==" = LLCeq
-llBinOp "!=" = LLCneq
-llBinOp "&&" = LLCand
-llBinOp "||" = LLCor
+llBinOp :: Operand -> LLparam -> LLparam -> LLcmd
+llBinOp "+" = LLcmd . OPadd . Two
+llBinOp "-" = LLcmd . OPsub . Two
+llBinOp "*" = LLcmd . OPmul . Two
+llBinOp "/" = LLcmd . OPdiv . Two
+llBinOp "%" = LLcmd . OPmod . Two
+llBinOp "&" = LLcmd . OPand . Two
+llBinOp "|" = LLcmd . OPor . Two
+llBinOp "^" = LLcmd . OPxor . Two
+llBinOp "<" = LLcmd . OPclt . Two
+llBinOp ">" = LLcmd . OPcgt . Two
+llBinOp "<=" = LLcmd . OPcle . Two
+llBinOp ">=" = LLcmd . OPcge . Two
+llBinOp "==" = LLcmd . OPceq . Two
+llBinOp "!=" = LLcmd . OPcneq . Two
+llBinOp "&&" = LLcmd . OPcand . Two
+llBinOp "||" = LLcmd . OPcor . Two
 llBinOp op = error ("llBinOp: Invalid operand encountered: " ++ op)
 
-llUnOp :: Operand -> LLParam -> LLcmd
-llUnOp "~" = LLNot
-llUnOp "-" = LLNeg
+llUnOp :: Operand -> LLparam -> LLcmd
+llUnOp "~" = LLcmd . OPnot . One
+llUnOp "-" = LLcmd . OPneg . One
 llUnOp op = error $ "llUnOp: Invalid operand encountered: " ++ op
 
 truncates32tou8 :: Immediate -> Immediate
 truncates32tou8 i = 255 .&. i
-{-
-  = if (i < 0)
-    then (256 - (i .&. 255))
-    else (i .&. 255)
--}
-
-
 
 
 -- The following code does a simple stack machine for evaluating Exprs.
 llExp :: Expr -> Register -> SIM [LLcmd]
 llExp (BinOp op exp1 (Int imm)) destreg = do
   e1 <- llExp exp1 destreg
-  return (e1 ++ [llBinOp op (PReg destreg) (PImm imm)])
+  return (e1 ++ [llBinOp op (Preg destreg) (Pimm imm)])
 llExp (BinOp op exp1 exp2) destreg = do
   e1 <- (llExp exp1 destreg)
 --  e2 <- (llExp exp2 (succ destreg))
@@ -116,20 +106,22 @@ llExp (BinOp op exp1 exp2) destreg = do
   lblcnt <- uniqLabel
   lblend <- uniqLabel
   return $ e1
-    ++ [LLPush (PReg destreg)]
+    ++ [LLpush (Preg destreg)]
     ++ (if (op == "&&")
-        then [LLJmpNZ lblcnt (PReg destreg),
-             LLSpAdd 4,
-             LLCp (PReg destreg) (PImm 0),
-             LLJmp lblend,
-             LLLabel lblcnt]
+        then [ LLcmd OPjmpnz (Two (Plbl lblcnt) (Preg destreg))
+             , LLcmd OPspadd (One $ Pimm 4)
+             , LLcmd OPcp (Two (Preg destreg) (Pimm 0))
+             , LLcmd OPjmp (One $ Plbl lblend)
+             , LLcmd OPlabel (One $ Plbl lblcnt)
+             ]
         else [])
-    ++ (if (op == "||")
-        then [LLJmpZ lblcnt (PReg destreg),
-             LLSpAdd 4,
-             LLCp (PReg destreg) (PImm 1),
-             LLJmp lblend,
-             LLLabel lblcnt]
+    ++ (if op == "||"
+        then [ LLcmd OPjmpz (Two (Plbl lblcnt) (Preg destreg))
+             , LLcmd OPspadd (One $ Pimm 4)
+             , LLcmd OPcp (Two (Preg destreg) (PImm 1)),
+             , LLcmd OPjmp (One $ Plbl lblend)
+             , LLcmd OPlabel (One $ Plbl lblcnt)
+             ]
         else [])
     ++ e2
     ++ [LLCp (PReg (succ destreg)) (PReg destreg)]

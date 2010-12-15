@@ -162,8 +162,8 @@ p_changer = do
   t <- p_type
   sl <- manyTill (lookAhead (notFollowedBy (p_return >> return 'x')) >> p_statement) p_nextfunction
   many p_separator
-  return $ Function empty name [("it", t)] t (sl ++
-                                              [((0,0), Return (Id (SingleElement "it")))])
+  return $ Function empty name [("it", t)] t (
+    sl ++ [((0,0), Return (Id (SingleElement "it")))])
   
 p_nextfunction =
   eof
