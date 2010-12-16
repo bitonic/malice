@@ -52,7 +52,7 @@ p_arrayEl = do
   var <- p_varName
   p_stringS "'s"
   pos <- p_expr
-  p_stringS "piece"
+  p_stringSS "piece"
   return (ArrayElement var pos)
 
 -- Actual parser
@@ -226,7 +226,8 @@ p_operator = choice $ map p_string operators
 p_string = p_lexeme . string
 p_stringS s = p_lexeme (string s <* p_1white)
 p_stringSS s = p_lexeme (string s <* ((p_1white >> return ())
-                                      <|> (lookAhead p_separatorNoSpace >> return ())))
+                                      <|> (lookAhead p_separatorNoSpace >> return ())
+                                      <|> (lookAhead (p_string ")") >> return ())))
 
 p_cstring = p_cstringGen p_string
 p_cstringS = p_cstringGen p_stringS
