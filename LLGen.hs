@@ -1,7 +1,7 @@
 module LLGen
        (
          LLcmd (..), LLparam (..), LLparams (..), LLop(..), LLcmp(..),
-         llSL, llFunc
+         llFunc
        ) where
 
 import Common
@@ -284,11 +284,11 @@ llSL ss = do
 --  return $ concat $ map (((flip evalState) si).llS) ss
 
 
---        Code body          /--/          Scope local
-llFunc :: StatementList -> FunctionName -> SymbolTable -> StringTable -> ([LLcmd], SymbolTable, StringTable, MaxVarCount)
-llFunc sl fn syt stt
+--        Code body          /--/          Func args      Scope local
+llFunc :: StatementList -> FunctionName -> SymbolTable -> SymbolTable -> StringTable -> ([LLcmd], SymbolTable, StringTable, MaxVarCount)
+llFunc sl fn fargs syt stt
   = (code, newsyt, strtab, mvc)
   where
     (code, (_, _, [newsyt], strtab, _, _, mvc))
-      = (((flip runState) (fn, M.empty, [syt], stt, (-1, -1), 0, 0)).llSL) sl
+      = (((flip runState) (fn, fargs, [syt], stt, (-1, -1), 0, 0)).llSL) sl
 

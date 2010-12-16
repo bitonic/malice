@@ -213,26 +213,19 @@ asmPrologue = "\n"
 
 
 
-cgDA :: DeclarationAct -> SIM String
+cgFunc :: [LLcmd] -> SIM String
 --cgDA (Function symtab name arglist rettype body)
-cgDA (Function symtab name args _ body) = do
-  putFuncName name
-  pushSymTab $ funcArgsSymTab args
-  pushSymTab symtab
-  --pushSymTab M.empty
-  putLabelCtr 0
-  lBody <- llSL body -- have to do this first to calculate memory need
-  cBody <- cgLL lBody
-  cSave <- cgLL [LLcmd OPpush (One $ Preg 1)]
-  cRestore <- cgLL [LLcmd OPpop (One $ Preg 1)]
+cgFunc body = do
+  fn <- getFuncName
   varcount <- getMaxVarCtr
+  cBody <- cgLL body
+  cSave <- cgLL [LLcmd OPpush (One $ Preg 1)]
   cAlloc <- cgLine (LLcmd OPspsub $ One $ Pimm $ fromIntegral (4 * varcount))
   cDealloc  <- cgLine (LLcmd OPspadd $ One $ Pimm $ fromIntegral (4 * varcount))
-  _ <- popSymTab
-  _ <- popSymTab
+  cRestore <- cgLL [LLcmd OPpop (One $ Preg 1)]
   return $ "\n"
-    ++ "global " ++ name ++ "\n"
-    ++ name ++ ":\n\n"
+    ++ "global " ++ fn ++ "\n"
+    ++ fn ++ ":\n\n"
     ++ cSave
     ++ "push ebp\n"
     ++ "mov ebp, esp\n"
@@ -241,32 +234,46 @@ cgDA (Function symtab name args _ body) = do
     ++ cBody
     ++ "mov eax, 0\n"
     ++ "\n"
-    ++ "end_" ++ name ++ ":\n"
+    ++ "end_" ++ fn ++ ":\n"
     ++ cDealloc
     ++ "pop ebp\n" 
     ++ cRestore
     ++ "ret\n"
 
-cgD :: Declaration -> SIM String
+
+cgDA :: DeclarationAct -> StringTable -> (String, StringTable)
+cgDA (Function symtab name arglist _ body) stt
+--  | name /= "_main" = error (show $ funcArgsSymTab arglist)
+  | otherwise  = (asmcode, newstt)
+  where
+    asmcode = (((flip evalState) (name, fargssyt, [newsyt], newstt, (-1, -1), 0, mvc)) . cgFunc) llcode
+    (llcode, newsyt, newstt, mvc) = llFunc body name fargssyt symtab stt
+    fargssyt = funcArgsSymTab arglist
+
+
+
+cgD :: Declaration -> StringTable -> (String, StringTable)
 --cgD (pos, (Function symtab name arglist rettype body))
-cgD ( _, da ) = do
-  cda <- cgDA da
-  return cda
+cgD ( _, da ) stt = cgDA da stt
 
 
 
-cgDL :: DeclarationList -> SIM String
-cgDL dl = do
-  cs <- mapM cgD dl
-  stt <- getStrTab
-  return $ asmPrologue
-    ++ concat cs
-    ++ "\n\n"
-    ++ "section .data\n"
-    ++ concat [ "_str_" ++ (show i) ++ ": db " ++ (strToAsm s) ++ ",0\n" | (i, s) <- stt ]
+cgDL :: DeclarationList -> StringTable -> (String, StringTable)
+cgDL [] stt
+  = ("", stt)
+cgDL (d : ds) stt
+  = (code ++ code2, newstt2)
+  where
+    (code2, newstt2) = (cgDL ds newstt)
+    (code, newstt) = cgD d stt
+
 
 cgAST :: AST -> String
-cgAST (AST _ dl) = (((flip evalState) si).cgDL) dl
+cgAST (AST _ dl)
+  = asmPrologue
+    ++ code
+    ++ "\n\n"
+    ++ "section .data\n"
+    ++ concat [ "_str_" ++ (show i) ++ ": db " ++ (strToAsm s) ++ ",0\n" | (i, s) <- strtab ]
   where
-    si = ("", M.empty, [], [], (0, 0), 0, 0)
-
+    (code, strtab) = (cgDL dl [])

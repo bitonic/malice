@@ -94,7 +94,7 @@ lookupSym v = do
   return $ case filter isJust $ map (M.lookup v) sts of
     [ ] -> case M.lookup v fas of
              Just y -> Just y
-             Nothing -> error ("Could not find symbol " ++ v)
+             Nothing -> error ("Couldn't find symbol " ++ v)
     (x : _) -> x
 
 -- prepares the given symtable based on existing number of entries on the stack
