@@ -10,7 +10,7 @@ import OptimExpr
 import Data.Bits
 import Data.Char
 import Control.Monad.State
-import qualified Data.Map as M
+--import qualified Data.Map as M
 
 
 --type VarOffset = Int
