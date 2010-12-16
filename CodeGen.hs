@@ -38,6 +38,13 @@ cgLLparam (Pimm i)
   = return $ "dword " ++ (show i)
 cgLLparam (Plbl l)
   = return l
+cgLLparam (Pderef p1 (Pimm i)) = do
+  c1 <- cgLLparam p1
+  return $ "[" ++ c1 ++ "+4*" ++ (show i) ++ "]"
+cgLLparam (Pderef p1 p2) = do
+  c1 <- cgLLparam p1
+  c2 <- cgLLparam p2
+  return $ "[" ++ c1 ++ "+" ++ c2 ++ "]"
 
 
 cgLL2param :: LLparam -> LLparam -> SIM String
@@ -108,6 +115,12 @@ cgJumpCMP CMPor = []
 
 cgLine :: LLcmd -> SIM String
 -- Some virtual statements for control purposes.
+cgLine (LLdecl v (MaliceArraySize _ _)) = do
+  initzero <- cgLine (LLcmd OPcp (Two (Pvar v) (Pimm 0)))
+  return initzero
+cgLine (LLdecl v (MaliceArray _)) = do
+  initzero <- cgLine (LLcmd OPcp (Two (Pvar v) (Pimm 0)))
+  return initzero
 cgLine (LLdecl v _) = do
 --cgLine (LLDecl v t) = do
   --sts <- getSymTabs

@@ -97,24 +97,42 @@ lookupSym v = do
              Nothing -> error ("Couldn't find symbol " ++ v)
     (x : _) -> x
 
+
+symMaxOffset :: [SymbolTable] -> Int
+symMaxOffset [] = 0
+symMaxOffset (x : xs)
+  = case offsets of
+      [] -> symMaxOffset xs
+      _ -> maximum offsets
+  where
+    offsets = [ o | (_, (_, o)) <- (M.toAscList x) ]
+
 -- prepares the given symtable based on existing number of entries on the stack
 scanSymTab :: SymbolTable -> SIM SymbolTable
 scanSymTab syt = do
   sts <- getSymTabs
-  oldcount <- return $ (sum $ map M.size sts)
+  oldcount <- return $ symMaxOffset sts
+  newsyt <- return $ prepSymTabOffsets (oldcount + 1) syt
   oldmvc <- getMaxVarCtr
-  putMaxVarCtr $ max oldmvc (oldcount + (M.size syt))
-  return $ prepSymTabOffsets (oldcount + 1) syt
+  putMaxVarCtr $ max oldmvc (symMaxOffset [newsyt])
+  return $ newsyt
 
+typeSize :: MaliceType -> Int
+--typeSize (MaliceArray _) = 2
+--typeSize (MaliceArraySize _ _) = 2
+typeSize _ = 1
+
+--Assign Offsets      Next    The Symbol
 prepSymTabOffsets' :: Int -> [(Variable, (MaliceType, Int))] ->  [(Variable, (MaliceType, Int))]
 prepSymTabOffsets' _ []
   = []
 prepSymTabOffsets' num ( (v, (t, _)) : ss )
-  = (v, (t, num)) : prepSymTabOffsets' (succ num) ss
+  = (v, (t, num - 1 + typeSize t )) : prepSymTabOffsets' (num + typeSize t) ss
 
 prepSymTabOffsets :: Int -> SymbolTable -> SymbolTable
 prepSymTabOffsets startid = M.fromList . (prepSymTabOffsets' startid) . M.toAscList
 
+-- A hack to have "valid" offsets for function arguments on the stack
 funcArgsSymTab' :: FunctionArgs -> SymbolTable -> SymbolTable
 funcArgsSymTab' [] st
   = st

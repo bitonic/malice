@@ -22,6 +22,7 @@ data LLparam = Pvar Variable
              | Preg Register
              | Pimm Immediate
              | Plbl Label
+             | Pderef LLparam LLparam
              deriving (Show, Eq)
 
 
@@ -135,17 +136,17 @@ llExp (BinOp op exp1 exp2) = do
         else []
        )
 llExp (UnOp op (Int imm))
-  = return $ [LLcmd OPcp (Two (Preg 0) (Pimm (evalUnOp op imm)))]
+  = return [LLcmd OPcp (Two (Preg 0) (Pimm (evalUnOp op imm)))]
 llExp (UnOp op exp1) = do
   e1 <- llExp exp1
   return $ e1
            ++ [(llUnOp op) (One $ Preg 0)]
 llExp (Int i)
-  = return $ [LLcmd OPcp (Two (Preg 0) (Pimm i))]
+  = return [LLcmd OPcp (Two (Preg 0) (Pimm i))]
 llExp (Char c)
-  = return $ [LLcmd OPcp (Two (Preg 0) (Pimm (truncates32tou8 $ fromIntegral (ord c) :: Immediate)))]
+  = return [LLcmd OPcp (Two (Preg 0) (Pimm (truncates32tou8 $ fromIntegral (ord c) :: Immediate)))]
 llExp (Id (SingleElement var))
-  = return $ [LLcmd OPcp (Two (Preg 0) (Pvar var))]
+  = return [LLcmd OPcp (Two (Preg 0) (Pvar var))]
 llExp (FunctionCall fn args) = do
   llargs <- mapM llExp args
   return $ ( concat $ reverse $ map (flip (++) [LLcmd OPpush (One $ Preg 0)]) $ llargs )
@@ -154,9 +155,15 @@ llExp (FunctionCall fn args) = do
               ]
 llExp (String str) = do
   strlbl <- uniqStr str
-  return $ [LLcmd OPcp (Two (Preg 0) (Plbl strlbl))]
-llExp (Id (ArrayElement _ _))
-  = error "Implement EXP ArrayElement"
+  return [LLcmd OPcp (Two (Preg 0) (Plbl strlbl))]
+llExp (Id (ArrayElement v nexp)) = do
+  llnexp <- llExp nexp
+  return $ llnexp
+           ++ []  -- TODO: Bounds checking
+           ++ [ LLcmd OPcp (Two (Preg 1) (Preg 0))
+              , LLcmd OPcp (Two (Preg 0) (Pvar v))
+              , LLcmd OPcp (Two (Preg 0) (Pderef (Preg 0) (Preg 1)))
+              ]
 
 
 --llExp (FunctionCall fn args) _ = do
@@ -177,22 +184,32 @@ llSA (Assign (SingleElement var) exp1) = do
   e1 <- llExp (optimiseExpr exp1)
   return $ e1
            ++ [(LLcmd OPcp (Two (Pvar var) (Preg 0)))]
-llSA (Assign (ArrayElement _ _) _)
-  = error "Implement Assign ArrayElement"
+llSA (Assign (ArrayElement var nexp) exp1) = do
+  llnexp <- llExp nexp
+  e1 <- llExp (optimiseExpr exp1)
+  return $ llnexp
+           ++ []  -- TODO: Bounds checking
+           ++ [LLcmd OPpush (One $ Preg 0)]
+           ++ e1
+           ++ [LLcmd OPpop (One $ Preg 1)]
+           ++ [LLcmd OPcp (Two (Preg 0) (Pvar var))]
+           ++ [LLcmd OPcp (Two (Pderef (Preg 0) (Preg 1)) (Preg 0))]
 llSA (Decrease (SingleElement var))
-  = return $ [ (LLcmd OPcp (Two (Preg 0) (Pvar var)))
-             , (LLcmd OPdec (One $ Preg 0))
-             , (LLcmd OPcp (Two (Pvar var) (Preg 0)))
-             ]
-llSA (Decrease (ArrayElement _ _))
-  = error "Implement Decrease ArrayElement"
+  = return [(LLcmd OPdec (One $ Pvar var))]
+llSA (Decrease (ArrayElement var nexp)) = do
+  llnexp <- llExp nexp
+  return $ llnexp
+           ++ []  -- TODO: Bounds checking
+           ++ [LLcmd OPcp (Two (Preg 1) (Pvar var))]
+           ++ [(LLcmd OPdec (One $ Pderef (Preg 1) (Preg 0)))]
 llSA (Increase (SingleElement var))
-  = return $ [ (LLcmd OPcp (Two (Preg 0) (Pvar var)))
-             , (LLcmd OPinc (One $ Preg 0))
-             , (LLcmd OPcp (Two (Pvar var) (Preg 0)))
-             ]
-llSA (Increase (ArrayElement _ _))
-  = error "Implement Increase ArrayElement"
+  = return [(LLcmd OPinc (One $ Pvar var))]
+llSA (Increase (ArrayElement var nexp)) = do
+  llnexp <- llExp nexp
+  return $ llnexp
+           ++ []  -- TODO: Bounds checkig
+           ++ [LLcmd OPcp (Two (Preg 1) (Pvar var))]
+           ++ [(LLcmd OPinc (One $ Pderef (Preg 1) (Preg 0)))]
 llSA (Return exp1) = do
   e1 <- llExp (optimiseExpr exp1)
   return $ e1
