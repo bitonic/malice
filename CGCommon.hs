@@ -1,12 +1,13 @@
 module CGCommon
        (
-         Operand, Register, Variable, Immediate, Label,
+         Operand, Register, Variable, Immediate, FunctionName, Label, StringTable, MaxVarCount,
          ScopeInfo, SIM,
          getFuncName, putFuncName,
          getSymTabs, putSymTabs, pushSymTab, scanSymTab, popSymTab, lookupSym, funcArgsSymTab,
          getStrTab, putStrTab, uniqStr,
          getCodePos, putCodePos, showCodePos,
          getLabelCtr, putLabelCtr, uniqLabel,
+         getMaxVarCtr, putMaxVarCtr,
          strToAsm,
        ) where
 
@@ -27,47 +28,58 @@ type Immediate = Int32
 type FunctionName = Label
 type Label = String
 type LabelCounter = Int
+type MaxVarCount = Int
 
 
 --type StringTable = Map Int String
 type StringTable = [(Int, String)]
 
 
-type ScopeInfo = (FunctionName, [SymbolTable], StringTable, Position, LabelCounter)
+type ScopeInfo = (FunctionName,
+                  SymbolTable,
+                  [SymbolTable],
+                  StringTable,
+                  Position,
+                  LabelCounter,
+                  MaxVarCount
+                 )
 -- ScopeInfo Monad
 type SIM = State ScopeInfo
+--  --  --  --  --  --  --   Func args  -- Local vars --  --  --  --  Code Pos. --
+--type LLInfo = (FunctionName, SymbolTable, [SymbolTable], StringTable, Position)
+--type LLMonad = State LLInfo
+--type CGMonad = State (FunctionName, StringTable)
 
 
 getFuncName :: SIM String
 getFuncName = do
-  (fn, _, _, _, _) <- get
+  (fn, _, _, _, _, _, _) <- get
   return fn
 
 putFuncName :: String -> SIM ()
 putFuncName fn = do
-  (_, syt, stt, cp, lc) <- get
-  put (fn, syt, stt, cp, lc)
+  (_, fas, syt, stt, cp, lc, mvc) <- get
+  put (fn, fas, syt, stt, cp, lc, mvc)
+
+getFuncArgsTab :: SIM SymbolTable
+getFuncArgsTab = do
+  (_, fas, _, _, _, _, _) <- get
+  return fas
 
 getSymTabs :: SIM [SymbolTable]
 getSymTabs = do
-  (_, symtab, _, _, _) <- get
+  (_, _, symtab, _, _, _, _) <- get
   return symtab
 
 putSymTabs :: [SymbolTable] -> SIM ()
 putSymTabs syt = do
-  (fn, _, stt, cp, lc) <- get
-  put (fn, syt, stt, cp, lc)
+  (fn, fas, _, stt, cp, lc, mvc) <- get
+  put (fn, fas, syt, stt, cp, lc, mvc)
 
 pushSymTab :: SymbolTable -> SIM ()
 pushSymTab syt = do
   sts <- getSymTabs
   putSymTabs (syt : sts)
-
--- prepares the given symtable based on existing number of entries on the stack
-scanSymTab :: SymbolTable -> SIM SymbolTable
-scanSymTab syt = do
-  sts <- getSymTabs
-  return $  (prepSymTabOffsets ((+) 1 $ sum $ map M.size sts) syt)
 
 popSymTab :: SIM SymbolTable
 popSymTab = do
@@ -78,9 +90,21 @@ popSymTab = do
 lookupSym :: String -> SIM (Maybe (MaliceType, Int))
 lookupSym v = do
   sts <- getSymTabs
+  fas <- getFuncArgsTab
   return $ case filter isJust $ map (M.lookup v) sts of
-    [ ] -> Nothing
+    [ ] -> case M.lookup v fas of
+             Just y -> Just y
+             Nothing -> error ("Could not find symbol " ++ v)
     (x : _) -> x
+
+-- prepares the given symtable based on existing number of entries on the stack
+scanSymTab :: SymbolTable -> SIM SymbolTable
+scanSymTab syt = do
+  sts <- getSymTabs
+  oldcount <- return $ 1 + (sum $ map M.size sts)
+  oldmvc <- getMaxVarCtr
+  putMaxVarCtr $ max oldmvc (oldcount + (M.size syt))
+  return $ prepSymTabOffsets oldcount syt
 
 prepSymTabOffsets' :: Int -> [(Variable, (MaliceType, Int))] ->  [(Variable, (MaliceType, Int))]
 prepSymTabOffsets' _ []
@@ -104,13 +128,13 @@ funcArgsSymTab fa
 
 getStrTab :: SIM StringTable
 getStrTab = do
-  (_, _, strtab, _, _) <- get
+  (_, _, _, strtab, _, _, _) <- get
   return strtab
 
 putStrTab :: StringTable -> SIM ()
 putStrTab stt = do
-  (fn, syt, _, cp, lc) <- get
-  put (fn, syt, stt, cp, lc)
+  (fn, fas, syt, _, cp, lc, mvc) <- get
+  put (fn, fas, syt, stt, cp, lc, mvc)
 
 uniqStr :: String -> SIM Label
 uniqStr str = do
@@ -123,13 +147,13 @@ uniqStr str = do
 
 getCodePos :: SIM (Int, Int)
 getCodePos = do
-  (_, _, _, cp, _) <- get
+  (_, _, _, _, cp, _, _) <- get
   return cp
 
 putCodePos :: (Int, Int) -> SIM ()
 putCodePos cp = do
-  (fn, syt, stt, _, lc) <- get
-  put (fn, syt, stt, cp, lc)
+  (fn, fas, syt, stt, _, lc, mvc) <- get
+  put (fn, fas, syt, stt, cp, lc, mvc)
 
 showCodePos :: SIM String
 showCodePos = do
@@ -139,20 +163,34 @@ showCodePos = do
 
 getLabelCtr :: SIM Int
 getLabelCtr = do
-  (_, _, _, _, lc) <- get
+  (_, _, _, _, _, lc, _) <- get
   return lc
 
 putLabelCtr :: Int -> SIM ()
 putLabelCtr lc = do
-  (fn, syt, stt, cp, _) <- get
-  put (fn, syt, stt, cp, lc)
+  (fn, fas, syt, stt, cp, _, mvc) <- get
+  put (fn, fas, syt, stt, cp, lc, mvc)
 
-uniqLabel :: SIM String
-uniqLabel = do
+uniqLabel :: String -> SIM String
+uniqLabel prefix = do
   fn <- getFuncName
   lc <- getLabelCtr
   putLabelCtr (lc + 1)
-  return $ "_" ++ fn ++ "_" ++ (show lc)
+  return $ "_" ++ prefix ++ "_" ++ fn ++ "_" ++ (show lc)
+
+
+getMaxVarCtr :: SIM MaxVarCount
+getMaxVarCtr = do
+  (_, _, _, _, _, _, mvc) <- get
+  return mvc
+
+putMaxVarCtr :: MaxVarCount -> SIM ()
+putMaxVarCtr mvc = do
+  (fn, fas, syt, stt, cp, lc, _) <- get
+  put (fn, fas, syt, stt, cp, lc, mvc)
+
+
+
 
 strToAsm s = "\"" ++ strToAsm' s ++ "\",0"
   where

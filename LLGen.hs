@@ -1,7 +1,7 @@
 module LLGen
        (
          LLcmd (..), LLparam (..), LLparams (..), LLop(..), LLcmp(..),
-         llSL,
+         llSL, llFunc
        ) where
 
 import Common
@@ -9,18 +9,19 @@ import CGCommon
 import OptimExpr
 import Data.Bits
 import Data.Char
---import Control.Monad.State
+import Control.Monad.State
+import qualified Data.Map as M
 
 
 --type VarOffset = Int
 --data VarValue = Imm Immediate
 --data VarInfo = SVar VarOffset VarValue
 
+
 data LLparam = Pvar Variable
              | Preg Register
              | Pimm Immediate
              | Plbl Label
---           | PStr String
              deriving (Show, Eq)
 
 
@@ -31,8 +32,8 @@ data LLcmd = LLcmd LLop LLparams
 
 data LLparams = Zero | One LLparam | Two LLparam LLparam
 
-data LLop = OPadd
-          | OPcp
+data LLop = OPcp
+          | OPadd
           | OPsub
           | OPmul
           | OPdiv
@@ -102,10 +103,9 @@ llExp (BinOp op exp1 (Int imm)) = do
   return (e1 ++ [(llBinOp op) (Two (Preg 0) (Pimm imm))])
 llExp (BinOp op exp1 exp2) = do
   e1 <- llExp exp1
---  e2 <- (llExp exp2 (succ destreg))
   e2 <- llExp exp2
-  lblcnt <- uniqLabel
-  lblend <- uniqLabel
+  lblcnt <- uniqLabel "ll"
+  lblend <- uniqLabel "ll"
   return $ e1
     ++ [LLcmd OPpush (One $ Preg 0)]
     ++ (if (op == "&&")
@@ -232,26 +232,30 @@ llSA (FunctionCallS _) = do
   epos <- showCodePos
   error $ epos ++ "Cannot call an expression that is not a FunctionCall"
 llSA (Until syt e body) = do
-  startlbl <- uniqLabel
-  endlbl <- uniqLabel
+  startlbl <- uniqLabel "ll"
+  endlbl <- uniqLabel "ll"
   le <- llExp e
+  pushSymTab syt
   lb <- llSL body
+  newsyt <- popSymTab
   return $ [LLcmd OPlabel (One $ Plbl startlbl)]
            ++ le
            ++ [ LLcmd OPjmpnz (Two (Plbl endlbl) (Preg 0))
-              , LLscope syt lb
+              , LLscope newsyt lb
               , LLcmd OPjmp (One $ Plbl startlbl)
               , LLcmd OPlabel (One $ Plbl endlbl)
               ]
 llSA (IfElse list) = do
-  endlbl <- uniqLabel
+  endlbl <- uniqLabel "ll"
   ls <- mapM (\(syt, e, body) -> do
                                  le <- llExp e
+                                 pushSymTab syt
                                  lb <- llSL body
-                                 lbl <- uniqLabel
+                                 newsyt <- popSymTab
+                                 lbl <- uniqLabel "ll"
                                  return $ le
                                           ++ [ LLcmd OPjmpz (Two (Plbl lbl) (Preg 0))
-                                             , LLscope syt lb
+                                             , LLscope newsyt lb
                                              , LLcmd OPjmp (One $ Plbl endlbl)
                                              , LLcmd OPlabel (One $ Plbl lbl)
                                              ]
@@ -268,10 +272,23 @@ llS s = do
   where
     (cp@(line, _), sa) = s
 
+
 llSL :: StatementList -> SIM [LLcmd]
 llSL ss = do
+  localsyt <- popSymTab
+  localsyt2 <- scanSymTab localsyt
+  pushSymTab $ localsyt2
   l <- mapM llS ss
   return $ concat l
 --  si <- get
 --  return $ concat $ map (((flip evalState) si).llS) ss
+
+
+--        Code body          /--/          Scope local
+llFunc :: StatementList -> FunctionName -> SymbolTable -> StringTable -> ([LLcmd], SymbolTable, StringTable, MaxVarCount)
+llFunc sl fn syt stt
+  = (code, newsyt, strtab, mvc)
+  where
+    (code, (_, _, [newsyt], strtab, _, _, mvc))
+      = (((flip runState) (fn, M.empty, [syt], stt, (-1, -1), 0, 0)).llSL) sl
 

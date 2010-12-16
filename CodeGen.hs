@@ -36,8 +36,6 @@ cgLLparam (Preg r)
   = return $ registerName r
 cgLLparam (Pimm i)
   = return $ "dword " ++ (show i)
---cgLLparam (Pstr _)
---  = error "cgLLParam: At this stage there should be no PStr left."
 cgLLparam (Plbl l)
   = return l
 
@@ -59,8 +57,8 @@ cgCmp :: String -> LLparam -> LLparam -> LLparam -> SIM String
 cgCmp jt pdest p1 p2 = do
   d <- cgLLparam pdest
   parms <- cgLL2param p1 p2
-  lbl1 <- uniqLabel
-  lbl2 <- uniqLabel
+  lbl1 <- uniqLabel "cg"
+  lbl2 <- uniqLabel "cg"
   return $ "cmp " ++ parms ++ "\n"
     ++ jt ++ " " ++ lbl1 ++ "\n"
     ++ "mov " ++ d ++ ", dword 0\n"
@@ -71,14 +69,14 @@ cgCmp jt pdest p1 p2 = do
 
 
 cgOP :: LLop -> String
-cgOP OPcp = "mov"
+cgOP OPcp  = "mov"
 cgOP OPadd = "add"
 cgOP OPsub = "sub"
 cgOP OPmul = "imul"
-cgOP OPdiv = error "Division needs special care."
-cgOP OPmod = error "Modulo needs special care."
+cgOP OPdiv = error "Division needs special care on i386. Do not use cgOP."
+cgOP OPmod = error "Modulo needs special care on i386. Do not use cgOP."
 cgOP OPand = "and"
-cgOP OPor = "or"
+cgOP OPor  = "or"
 cgOP OPxor = "xor"
 cgOP OPdec = "dec"
 cgOP OPinc = "inc"
@@ -87,13 +85,13 @@ cgOP OPneg = "neg"
 cgOP OPret = "ret"
 cgOP OPspsub = "sub esp,"
 cgOP OPspadd = "add esp,"
-cgOP OPpush = "push"
-cgOP OPpop = "pop"
+cgOP OPpush  = "push"
+cgOP OPpop   = "pop"
 cgOP OPsrcline = []
-cgOP OPcall = "call"
+cgOP OPcall  = "call"
 cgOP OPlabel = []
-cgOP OPjmp = "jmp"
-cgOP OPjmpz = []
+cgOP OPjmp   = "jmp"
+cgOP OPjmpz  = []
 cgOP OPjmpnz = []
 
 cgJumpCMP :: LLcmp -> String
@@ -125,13 +123,11 @@ cgLine (LLcmd OPret Zero) = do
   fn <- getFuncName
   return $ "jmp end_" ++ fn ++ "\n"
 cgLine (LLscope symtab ll) = do
-  localsyt <- scanSymTab symtab
-  cAlloc <- cgLine (LLcmd OPspsub $ One $ Pimm $ fromIntegral (4 * (M.size symtab)))
-  cDealloc  <- cgLine (LLcmd OPspadd $ One $ Pimm $ fromIntegral (4 * (M.size symtab)))
-  pushSymTab localsyt
+  pushSymTab symtab
   c <- cgLL ll
   _ <- popSymTab
-  return $ cAlloc ++ c ++ cDealloc
+  return c
+--
 -- Division and modulo. Special care on i386!
 cgLine (LLcmd OPdiv (Two (Preg r1) (Preg r2)))
 -- WARNING: If r1 == 3 and r2 == 0 we will have loss of information...
@@ -169,6 +165,7 @@ cgLine (LLcmd OPdiv _)
   = error "cgLine: Impossible operand combination for LLDiv on i386"
 cgLine (LLcmd OPmod _)
   = error "cgLine: Impossible operand combination for LLMod on i386"
+--
 -- Conditional jumps.
 cgLine (LLcmd OPjmpz (Two (Plbl l) p1)) = do
   parms <- cgLL2param p1 p1
@@ -178,6 +175,7 @@ cgLine (LLcmd OPjmpnz (Two (Plbl l) p1)) = do
   parms <- cgLL2param p1 p1
   return $ "test " ++ parms ++ "\n"
     ++ "jne " ++ l ++ "\n"
+--
 -- Comparisons.
 cgLine (LLcmp CMPand ps) = cgLine (LLcmd OPand ps)
 cgLine (LLcmp CMPor  ps) = cgLine (LLcmd OPor  ps)
@@ -185,6 +183,7 @@ cgLine (LLcmp cmp (Two p1 p2)) = do
   c <- cgCmp (cgJumpCMP cmp) p1 p1 p2
   return $ c
 cgLine (LLcmp _ _) = error "CodeGen: Invalid parameters for comparison."
+--
 -- Commands.
 cgLine (LLcmd op ps) = do
   parms <- cgLLparams ps
@@ -218,17 +217,17 @@ cgDA :: DeclarationAct -> SIM String
 --cgDA (Function symtab name arglist rettype body)
 cgDA (Function symtab name args _ body) = do
   putFuncName name
-  localsyt <- scanSymTab symtab
   pushSymTab $ funcArgsSymTab args
-  pushSymTab localsyt
+  pushSymTab symtab
   --pushSymTab M.empty
   putLabelCtr 0
-  lBody <- llSL body
-  cBody <- cgLL lBody -- have to do this first to calculate memory need
+  lBody <- llSL body -- have to do this first to calculate memory need
+  cBody <- cgLL lBody
   cSave <- cgLL [LLcmd OPpush (One $ Preg 1)]
-  cAlloc <- cgLine (LLcmd OPspsub $ One $ Pimm $ fromIntegral (4 * (M.size symtab)))
-  cDealloc  <- cgLine (LLcmd OPspadd $ One $ Pimm $ fromIntegral (4 * (M.size symtab)))
   cRestore <- cgLL [LLcmd OPpop (One $ Preg 1)]
+  varcount <- getMaxVarCtr
+  cAlloc <- cgLine (LLcmd OPspsub $ One $ Pimm $ fromIntegral (4 * varcount))
+  cDealloc  <- cgLine (LLcmd OPspadd $ One $ Pimm $ fromIntegral (4 * varcount))
   _ <- popSymTab
   _ <- popSymTab
   return $ "\n"
@@ -264,11 +263,10 @@ cgDL dl = do
     ++ concat cs
     ++ "\n\n"
     ++ "section .data\n"
---    ++ concat [ "_str_" ++ (show i) ++ ": db \"" ++ s ++ "\",0\n" | (i, s) <- stt ]
     ++ concat [ "_str_" ++ (show i) ++ ": db " ++ (strToAsm s) ++ ",0\n" | (i, s) <- stt ]
 
 cgAST :: AST -> String
 cgAST (AST _ dl) = (((flip evalState) si).cgDL) dl
   where
-    si = ("", [], [], (0, 0), 0)
+    si = ("", M.empty, [], [], (0, 0), 0, 0)
 
