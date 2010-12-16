@@ -101,10 +101,10 @@ lookupSym v = do
 scanSymTab :: SymbolTable -> SIM SymbolTable
 scanSymTab syt = do
   sts <- getSymTabs
-  oldcount <- return $ 1 + (sum $ map M.size sts)
+  oldcount <- return $ (sum $ map M.size sts)
   oldmvc <- getMaxVarCtr
   putMaxVarCtr $ max oldmvc (oldcount + (M.size syt))
-  return $ prepSymTabOffsets oldcount syt
+  return $ prepSymTabOffsets (oldcount + 1) syt
 
 prepSymTabOffsets' :: Int -> [(Variable, (MaliceType, Int))] ->  [(Variable, (MaliceType, Int))]
 prepSymTabOffsets' _ []
