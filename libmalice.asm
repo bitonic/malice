@@ -80,7 +80,7 @@ _check_arr:		; int checkArr(int sourceline, int *array, int item)
 mov eax, [esp+8]	; get array address
 mov eax, [eax]		; get array size (hidden element 0)
 cmp eax, [esp+12]
-jge _check_arr_ok	; if size >= item, return OK
+jae _check_arr_ok	; if size >= item, return OK
 
 push _str_paragraph_2
 push dword [esp+4+4]

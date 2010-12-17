@@ -276,9 +276,22 @@ llSA (Print exp1) = do
 llSA (Get (SingleElement var)) = do
   e1 <- llExp (FunctionCall "_read_int" [])
   return $ e1 ++ [LLcmd OPcp (Two (Pvar var) (Preg 0))]
-llSA (Get (ArrayElement _ _)) = do
-  epos <- showCodePos
-  error $ epos ++ "Cannot read a whole array"
+llSA (Get (ArrayElement var nexp)) = do
+  llnexp <- llExp nexp
+  e1 <- llExp (FunctionCall "_read_int" [])
+  checkcall <- llExp (FunctionCall "_check_arr" [])
+  (line, _) <- getCodePos
+  return $ llnexp
+           ++ [ LLcmd OPpush (One $ Preg 0)
+              , LLcmd OPpush (One $ Pvar var)
+              , LLcmd OPpush (One $ Pimm $ fromIntegral line)
+              ]
+           ++ checkcall  -- if array access is invalid this never returns
+           ++ [LLcmd OPspadd (One $ Pimm 8)]
+           ++ e1
+           ++ [LLcmd OPcp (Two (Preg 2) (Pvar var))]
+           ++ [LLcmd OPpop (One $ Preg 1)]
+           ++ [LLcmd OPcp (Two (Pderef (Preg 2) (Preg 1)) (Preg 0))]
 llSA (FunctionCallS fc@(FunctionCall _ _))
   = llExp fc
 llSA (FunctionCallS _) = do
