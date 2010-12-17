@@ -12,6 +12,8 @@
 
 
 extern _main
+extern malloc
+extern free
 
 section .text ; start of code
 global _start ; export the main function
@@ -19,23 +21,103 @@ global _start ; export the main function
 
 
 _start:
+mov [__start_esp], esp
 call _main
+_start_end:
+mov esp, [__start_esp]
 mov ebx, eax
 mov eax, 1
 int 0x80
 
 
 
-global _checkarr
-_checkarr:
+
+
+; ALLOCATING function for array memory
+
+global _malice_alloc
+_malice_alloc:		; void* maliceAlloc(int size, int sourceline)
+push dword [esp+4]
+call malloc
+add esp, 4
+test eax, eax
+jne _malice_alloc_ok	; if memory allocated -> OK, return it
+
+push _str_paragraph_2
+push dword [esp+8+4]
+push _str_paragraph_1
+push _str_alloc_2
+push dword [esp+4+16]
+push _str_alloc_1
+
+call _print_string
+add esp, 4
+call _print_int
+add esp, 4
+call _print_string
+add esp, 4
+call _print_string
+add esp, 4
+call _print_int
+add esp, 4
+call _print_string
+add esp, 4
+
 mov eax, 1
+jmp _start_end	; poor man's exception handling
+
+_malice_alloc_ok:
 ret
 
 
 
 
 
-; PRINTING function for CHARS (8-bit in 32-bit, LSB in Intel byte order)
+; CHECKING function for array bounds
+
+global _check_arr
+_check_arr:		; int checkArr(int sourceline, int *array, int item)
+mov eax, [esp+8]	; get array address
+mov eax, [eax]		; get array size (hidden element 0)
+cmp eax, [esp+12]
+jge _check_arr_ok	; if size >= item, return OK
+
+push _str_paragraph_2
+push dword [esp+4+4]
+push _str_paragraph_1
+push eax
+push _str_abc_2
+push dword [esp+12+20]
+push _str_abc_1
+
+call _print_string
+add esp, 4
+call _print_int
+add esp, 4
+call _print_string
+add esp, 4
+call _print_int
+add esp, 4
+call _print_string
+add esp, 4
+call _print_int
+add esp, 4
+call _print_string
+add esp, 4
+
+mov eax, 1
+jmp _start_end	; poor man's exception handling
+
+_check_arr_ok:
+mov eax, [esp+12]
+_check_arr_end:
+ret
+
+
+
+
+
+; PRINTING procedure for CHARS (8-bit in 32-bit, LSB in Intel byte order)
 
 global _print_char
 _print_char:	; void printChar(int char)
@@ -60,7 +142,7 @@ ret
 
 
 
-; PRINTING function for STRINGS (8-bit)
+; PRINTING procedure for STRINGS (8-bit)
 
 global _print_string
 _print_string:	; void printString(char *string)
@@ -93,7 +175,7 @@ ret
 
 
 
-; PRINTING function for INTEGERS (signed, 32-bit)
+; PRINTING procedure for INTEGERS (signed, 32-bit)
 
 global _print_int
 _print_int:	; void printInt(int num)
@@ -144,7 +226,7 @@ ret
 
 
 
-; READING function for INTEGERS (signed, 32-bit)
+; READING procedure for INTEGERS (signed, 32-bit)
 
 global _read_int
 _read_int:	; int readInt(void)
@@ -215,4 +297,15 @@ ret
 
 section .data
 
-_linect: dd 0
+_str_abc_1: db "Oh no! You wanted their ",0
+; requested item number
+_str_abc_2: db " piece, but they only had ",0
+; array size
+_str_paragraph_1: db ". Check paragraph ",0
+; source code line
+_str_paragraph_2: db " of the story again!",10,0
+
+_str_alloc_1: db "Oh no! You wanted ",0
+_str_alloc_2: db " many physical pieces, but they didn't have this many",0
+
+__start_esp: dd 0

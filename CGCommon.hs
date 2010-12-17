@@ -137,7 +137,7 @@ funcArgsSymTab' :: FunctionArgs -> SymbolTable -> SymbolTable
 funcArgsSymTab' [] st
   = st
 funcArgsSymTab' ((v, t) : xs) st
-  = funcArgsSymTab' xs (M.insert v (t, (-3) - (length xs) ) st)
+  = funcArgsSymTab' xs (M.insert v (t, (-4) - (length xs) ) st)
 
 funcArgsSymTab :: FunctionArgs -> SymbolTable
 funcArgsSymTab fa

@@ -38,13 +38,13 @@ cgLLparam (Pimm i)
   = return $ "dword " ++ (show i)
 cgLLparam (Plbl l)
   = return l
-cgLLparam (Pderef p1 (Pimm i)) = do
+cgLLparam (Pderef p1 (Pimm i)) = do -- only with registers and immediates
   c1 <- cgLLparam p1
   return $ "[" ++ c1 ++ "+4*" ++ (show i) ++ "]"
-cgLLparam (Pderef p1 p2) = do
+cgLLparam (Pderef p1 p2) = do -- only with registers and registers
   c1 <- cgLLparam p1
   c2 <- cgLLparam p2
-  return $ "[" ++ c1 ++ "+" ++ c2 ++ "]"
+  return $ "[" ++ c1 ++ "+4*" ++ c2 ++ "]"
 
 
 cgLL2param :: LLparam -> LLparam -> SIM String
@@ -218,6 +218,8 @@ asmPrologue = "\n"
               ++ "; Code for Linux on IA-32:\n"
               ++ "\n"
               ++ "section .text ; start of code\n\n"
+              ++ "extern _malice_alloc\n"
+              ++ "extern _check_arr\n"
               ++ "extern _print_char\n"
               ++ "extern _print_string\n"
               ++ "extern _print_int\n"
@@ -232,10 +234,10 @@ cgFunc body = do
   fn <- getFuncName
   varcount <- getMaxVarCtr
   cBody <- cgLL body
-  cSave <- cgLL [LLcmd OPpush (One $ Preg 1)]
+  cSave <- cgLL [LLcmd OPpush (One $ Preg 1), LLcmd OPpush (One $ Preg 2)]
   cAlloc <- cgLine (LLcmd OPspsub $ One $ Pimm $ fromIntegral (4 * varcount))
   cDealloc  <- cgLine (LLcmd OPspadd $ One $ Pimm $ fromIntegral (4 * varcount))
-  cRestore <- cgLL [LLcmd OPpop (One $ Preg 1)]
+  cRestore <- cgLL [LLcmd OPpop (One $ Preg 2), LLcmd OPpop (One $ Preg 1)]
   return $ "\n"
     ++ "global " ++ fn ++ "\n"
     ++ fn ++ ":\n\n"

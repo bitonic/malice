@@ -44,7 +44,7 @@ else
 	fi
 	
 	# Link the program
-	ld -o "$OUTPUT" "$OUTPUT.o" libmalice.o
+	ld -o "$OUTPUT" "$OUTPUT.o" libmalice.o -lc --dynamic-linker=/lib/ld-linux.so.2
 	if [ $? != 0 ]; then
 		echo "Error: Failed to link the program."
 		exit 4
