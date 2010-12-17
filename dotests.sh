@@ -45,6 +45,18 @@ function ma_testsingle
 	BASENAME=${BASEPATH##*/}	# The source name without .alice
 	FILEDIR=${FULLPATH%/*}		# The directory the .alice file is in
 	
+	# Clean up first, just in case there are stale files
+	rm -f "$OUTPUTDIR"/"$BASENAME".tcr
+	rm -f "$OUTPUTDIR"/"$BASENAME".tce
+	rm -f "$OUTPUTDIR"/"$BASENAME".tco
+	rm -f "$OUTPUTDIR"/"$BASENAME".*.tr
+	rm -f "$OUTPUTDIR"/"$BASENAME".*.te
+	rm -f "$OUTPUTDIR"/"$BASENAME".*.to
+	rm -f "$OUTPUTDIR"/"$BASENAME"
+	rm -f "$OUTPUTDIR"/"$BASENAME".alice
+	rm -f "$OUTPUTDIR"/"$BASENAME".asm
+	
+	
 	# Run the compiler
 	./compile "$FULLPATH" "$OUTPUTDIR"/"$BASENAME" > "$OUTPUTDIR"/"$BASENAME".tco 2> "$OUTPUTDIR"/"$BASENAME".tce
 	echo $? > "$OUTPUTDIR"/"$BASENAME".tcr
