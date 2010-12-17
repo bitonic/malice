@@ -232,7 +232,7 @@ p_stringSS s = p_lexeme (string s <* ((p_1white >> return ())
 p_cstring = p_cstringGen p_string
 p_cstringS = p_cstringGen p_stringS
 p_cstringSS = p_cstringGen p_stringSS
-p_cstringGen p s = (mapM lexeme1 start >> p end) >> return s
+p_cstringGen p s = (mapM_ lexeme1 start >> p end) >> return s
   where end = last ws 
         start = init ws
         ws = words s
@@ -240,7 +240,7 @@ p_cstringGen p s = (mapM lexeme1 start >> p end) >> return s
 
 p <* q = p >>= (\x -> q >> return x)
 
-p_1white = satisfy $ isSpace
+p_1white = satisfy isSpace
 
 -- parser from string
 maliceParser :: String -> String -> Either ParseError AST

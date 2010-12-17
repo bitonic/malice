@@ -102,7 +102,7 @@ declMap ((_, d) : dl) = do
                                declName d ++ ".")
 
 declaration :: Declaration -> TypeMonad Declaration
-declaration (pos, d) = dAct d >>= return . (,) pos
+declaration (pos, d) = fmap ((,) pos) (dAct d)
   
 dAct :: DeclarationAct -> TypeMonad DeclarationAct
 dAct (Function _ name args rt sl) = do
@@ -110,9 +110,7 @@ dAct (Function _ name args rt sl) = do
   sl' <- statementList sl
   st <- popST
   return (Function (deleteArgs (map fst args) st) name args rt sl')
-  where
-    deleteArgs [] st = st
-    deleteArgs (k : ks) st = deleteArgs ks (M.delete k st)
+  where deleteArgs ks st = foldl (flip M.delete) st ks
     
 
 -- Statements checker

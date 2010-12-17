@@ -13,7 +13,6 @@ module Common
 
 import Data.Int ( Int32 )
 import Data.Map ( Map )
-import qualified Data.Map as M
 
 -- Abstact Syntax Tree definitEmptyion
 -- The --Pos ones are used in the semantics, so that we
@@ -46,13 +45,11 @@ type Position = (Int, Int)
 
 type FileName = String
 data AST = AST FileName DeclarationList
-         deriving (Eq)
+         deriving (Eq,Show)
 
 mainFunction = "_main"
 
 type StatementList = [Statement]
-
-showSL sl ind = initEmpty $ concatMap (\(_, s) -> ind ++ showS s (ind ++ "    ") ++ "\n") sl
 
 type Statement = (Position, StatementAct)
 
@@ -72,8 +69,6 @@ data StatementAct
 
 type DeclarationList = [Declaration]
 
-showDL dl = concatMap (\(_, d) -> show d ++ "\n") dl
-
 type DeclarationMap = Map String DeclarationAct
 
 type Declaration = (Position, DeclarationAct)
@@ -81,18 +76,14 @@ type Declaration = (Position, DeclarationAct)
 data DeclarationAct
      -- Symbol table, function name, arguments, return type, body
      = Function SymbolTable String FunctionArgs MaliceType StatementList
-     deriving (Eq)
+     deriving (Eq,Show)
 
 type FunctionArgs = [(String, MaliceType)]
 
 data Identifier = SingleElement String -- String = name of the variable
                 | ArrayElement String Expr -- Name position
-                deriving (Eq)
+                deriving (Eq,Show)
                         
-instance Show Identifier where
-  show (SingleElement s) = s
-  show (ArrayElement s e) = s ++ "[" ++ show e ++ "]"
-
 data Expr
      = UnOp String Expr
      | BinOp String Expr Expr
@@ -101,7 +92,7 @@ data Expr
      | Char Char
      | String String
      | Id Identifier
-     deriving (Eq)
+     deriving (Eq,Show)
               
 type SymbolTable = Map String (MaliceType, Int)
 
@@ -112,66 +103,3 @@ stringToType "sentence" = MaliceString
 stringToType _ = error "Unknown type string in source code."
 
 declName (Function _ s _ _ _) = s
-
-initEmpty [] = []
-initEmpty xs = init xs
-
--- Show functions.
--- WARINING: UGLY CODE, for debugging purposes
-
-                  
-
-instance Show AST where
-  show (AST fn dl) =
-    "File " ++ fn ++ ":\n\n" ++
-    showDL dl
-
-showS (Assign var e) _ = show var ++ " = " ++ show e
-showS (Declare t n) _ = n ++ " is a " ++ show t
-showS (Decrease var) _ = "Decrease " ++ show var
-showS (Increase var) _ = "Increase " ++ show var
-showS (Return e) _ = "Return " ++ show e
-showS (Print e) _ = "Print \"" ++ show e ++ "\""
-showS (Get var) _ = "Get " ++ show var
-showS (FunctionCallS e) _ = show e
-showS (Until st e sl) ind = "Until " ++ show e ++ " becomes true\n" ++
-                            showStOrNot st ind ++
-                            ind ++ "\b\b\b\b{\n" ++
-                            showSL sl ind ++ "\n" ++ ind ++ "\b\b\b\b}"
-showS (IfElse blocks) ind = first (head blocks) ++ concatMap ifelse (tail blocks)
-                            
-  where
-    first (st, e, sl) = "If " ++ show e ++ "\n" ++ showStOrNot st ind ++
-                        ind ++ "\b\b\b\b{\n" ++ showSL sl ind ++ "\n" ++ ind ++ "\b\b\b\b} "
-    ifelse (st, e, sl) = switch ++ "\n" ++ showStOrNot st ind ++
-                         ind ++ "\b\b\b\b{\n" ++ showSL sl ind ++ "\n" ++ ind ++ "\b\b\b\b}"
-      where switch | e == (Int 1) = "Else"
-                   | otherwise    = "Else If (" ++ show e ++ ")"
-
-showStOrNot st ind
-  | M.null st   = ""
-  | otherwise   = ind ++ "\b\b\b\b" ++ "Symbol Table: " ++ showST st ++ "\n"
-
-instance Show DeclarationAct where
-  show (Function st name args t sl) =
-    "Function \"" ++ name ++ "\", args: " ++ showArg args ++
-    ", return type: " ++ show t ++
-    "\nSymbol table: " ++ showST st ++ "\n{\n" ++
-    showSL sl "    " ++ "\n}\n"
-
-showArg args = "(" ++ (removeComma $ concat [", " ++ show t ++ " " ++ n |
-                                             (n, t) <- args]) ++ ")"
-
-removeComma [] = []
-removeComma s = tail $ tail s
-
-instance Show Expr where
-  show (UnOp op e) = "(" ++ op ++ show e ++ ")"
-  show (BinOp op e1 e2) = "(" ++ show e1 ++ " " ++ op ++ " " ++ show e2 ++ ")"
-  show (FunctionCall f args) = f ++ "(" ++ removeComma (concatMap ((++) ", " . show) args) ++ ")"
-  show (Int i) = show i
-  show (Char c) = [c]
-  show (String s) = s
-  show (Id var) = show var
-
-showST st = (initEmpty $ initEmpty $ concatMap (\(s, (t, _)) -> show t ++ " \"" ++ s ++ "\", ") $ M.assocs st) ++ "."

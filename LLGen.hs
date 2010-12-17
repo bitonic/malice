@@ -102,15 +102,16 @@ truncates32tou8 i = 255 .&. i
 llExp :: Expr -> SIM [LLcmd]
 llExp (BinOp op exp1 (Int imm)) = do
   e1 <- llExp exp1
-  return (e1 ++ [(llBinOp op) (Two (Preg 0) (Pimm imm))])
+  return (e1 ++ [llBinOp op (Two (Preg 0) (Pimm imm))])
 llExp (BinOp op exp1 exp2) = do
   e1 <- llExp exp1
   e2 <- llExp exp2
   lblcnt <- uniqLabel "ll"
   lblend <- uniqLabel "ll"
-  return $ e1
+  return $
+    e1
     ++ [LLcmd OPpush (One $ Preg 0)]
-    ++ (if (op == "&&")
+    ++ (if op == "&&"
         then [ LLcmd OPjmpnz (Two (Plbl lblcnt) (Preg 0))
              , LLcmd OPspadd (One $ Pimm 4)
              , LLcmd OPcp (Two (Preg 0) (Pimm 0))
@@ -131,17 +132,13 @@ llExp (BinOp op exp1 exp2) = do
     ++ e2
     ++ [LLcmd OPcp (Two (Preg 1) (Preg 0))]
     ++ [LLcmd OPpop (One $ Preg 0)]
-    ++ [(llBinOp op) (Two (Preg 0) (Preg 1))]
-    ++ (if (op == "&&" || op == "||")
-        then [LLcmd OPlabel (One $ Plbl lblend)]
-        else []
-       )
+    ++ [llBinOp op (Two (Preg 0) (Preg 1))]
+    ++ [LLcmd OPlabel (One $ Plbl lblend) | op `elem` ["&&", "||"]]
 llExp (UnOp op (Int imm))
   = return [LLcmd OPcp (Two (Preg 0) (Pimm (evalUnOp op imm)))]
 llExp (UnOp op exp1) = do
   e1 <- llExp exp1
-  return $ e1
-           ++ [(llUnOp op) (One $ Preg 0)]
+  return $ e1 ++ [llUnOp op (One $ Preg 0)]
 llExp (Int i)
   = return [LLcmd OPcp (Two (Preg 0) (Pimm i))]
 llExp (Char c)
@@ -150,10 +147,11 @@ llExp (Id (SingleElement var))
   = return [LLcmd OPcp (Two (Preg 0) (Pvar var))]
 llExp (FunctionCall fn args) = do
   llargs <- mapM llExp args
-  return $ ( concat $ reverse $ map (flip (++) [LLcmd OPpush (One $ Preg 0)]) $ llargs )
-           ++ [ LLcmd OPcall (One $ Plbl fn)
-              , LLcmd OPspadd (One $ Pimm $ fromIntegral (4 * length args))
-              ]
+  return $
+    concat (reverse $ map (++ [LLcmd OPpush (One $ Preg 0)]) llargs)
+    ++ [ LLcmd OPcall (One $ Plbl fn)
+       , LLcmd OPspadd (One $ Pimm $ fromIntegral (4 * length args))
+       ]
 llExp (String str) = do
   strlbl <- uniqStr str
   return [LLcmd OPcp (Two (Preg 0) (Plbl strlbl))]
@@ -161,17 +159,18 @@ llExp (Id (ArrayElement v nexp)) = do
   llnexp <- llExp nexp
   checkcall <- llExp (FunctionCall "_check_arr" [])
   (line, _) <- getCodePos
-  return $ llnexp
-           ++ [ LLcmd OPpush (One $ Preg 0)
-              , LLcmd OPpush (One $ Pvar v)
-              , LLcmd OPpush (One $ Pimm $ fromIntegral line)
-              ]
-           ++ checkcall  -- if array access is invalid this never returns
-           ++ [LLcmd OPspadd (One $ Pimm 12)]
-           ++ [ LLcmd OPcp (Two (Preg 1) (Preg 0))
-              , LLcmd OPcp (Two (Preg 0) (Pvar v))
-              , LLcmd OPcp (Two (Preg 0) (Pderef (Preg 0) (Preg 1)))
-              ]
+  return $
+    llnexp
+    ++ [ LLcmd OPpush (One $ Preg 0)
+       , LLcmd OPpush (One $ Pvar v)
+       , LLcmd OPpush (One $ Pimm $ fromIntegral line)
+       ]
+    ++ checkcall  -- if array access is invalid this never returns
+    ++ [LLcmd OPspadd (One $ Pimm 12)]
+    ++ [ LLcmd OPcp (Two (Preg 1) (Preg 0))
+       , LLcmd OPcp (Two (Preg 0) (Pvar v))
+       , LLcmd OPcp (Two (Preg 0) (Pderef (Preg 0) (Preg 1)))
+       ]
 
 
 
@@ -180,95 +179,95 @@ llSA (Declare t@(MaliceArraySize _ sexp) v) = do
   llsexp <- llExp sexp
   malloccall <- llExp $ FunctionCall "_malice_alloc" []
   (line, _) <- getCodePos
-  return $ [LLdecl v t]
-           ++ llsexp
-           ++ [LLcmd OPpush (One $ Preg 0)] -- the logical size
-           ++ [LLcmd OPadd (Two (Preg 0) (Pimm 1))] -- + the hidden size field
-           ++ [LLcmd OPmul (Two (Preg 0) (Pimm 4))]
-           ++ [LLcmd OPpush (One $ Pimm $ fromIntegral line)]
-           ++ [LLcmd OPpush (One $ Preg 0)] -- the physical size
-           ++ malloccall
-           ++ [LLcmd OPspadd (One $ Pimm 8)] -- discard physical size
-           ++ [LLcmd OPcp (Two (Pvar v) (Preg 0))]
-           ++ [LLcmd OPpop (One $ Preg 1)] -- the logical size + hidden field
-           ++ [LLcmd OPcp (Two (Pderef (Preg 0) (Pimm 0)) (Preg 1))]
+  return $
+    [LLdecl v t]
+    ++ llsexp
+    ++ [LLcmd OPpush (One $ Preg 0)] -- the logical size
+    ++ [LLcmd OPadd (Two (Preg 0) (Pimm 1))] -- + the hidden size field
+    ++ [LLcmd OPmul (Two (Preg 0) (Pimm 4))]
+    ++ [LLcmd OPpush (One $ Pimm $ fromIntegral line)]
+    ++ [LLcmd OPpush (One $ Preg 0)] -- the physical size
+    ++ malloccall
+    ++ [LLcmd OPspadd (One $ Pimm 8)] -- discard physical size
+    ++ [LLcmd OPcp (Two (Pvar v) (Preg 0))]
+    ++ [LLcmd OPpop (One $ Preg 1)] -- the logical size + hidden field
+    ++ [LLcmd OPcp (Two (Pderef (Preg 0) (Pimm 0)) (Preg 1))]
 llSA (Declare t v)
   = return [LLdecl v t]
 llSA (Assign (SingleElement var) (Int imm))
   = return [LLcmd OPcp (Two (Pvar var) (Pimm imm))]
 llSA (Assign (SingleElement var) exp1) = do
   e1 <- llExp (optimiseExpr exp1)
-  return $ e1
-           ++ [(LLcmd OPcp (Two (Pvar var) (Preg 0)))]
+  return $ e1 ++ [LLcmd OPcp (Two (Pvar var) (Preg 0))]
 llSA (Assign (ArrayElement var nexp) exp1) = do
   llnexp <- llExp nexp
   e1 <- llExp (optimiseExpr exp1)
   checkcall <- llExp (FunctionCall "_check_arr" [])
   (line, _) <- getCodePos
-  return $ llnexp
-           ++ [ LLcmd OPpush (One $ Preg 0)
-              , LLcmd OPpush (One $ Pvar var)
-              , LLcmd OPpush (One $ Pimm $ fromIntegral line)
-              ]
-           ++ checkcall  -- if array access is invalid this never returns
-           ++ [LLcmd OPspadd (One $ Pimm 8)]
-           ++ e1
-           ++ [LLcmd OPcp (Two (Preg 2) (Pvar var))]
-           ++ [LLcmd OPpop (One $ Preg 1)]
-           ++ [LLcmd OPcp (Two (Pderef (Preg 2) (Preg 1)) (Preg 0))]
+  return $
+    llnexp
+    ++ [ LLcmd OPpush (One $ Preg 0)
+       , LLcmd OPpush (One $ Pvar var)
+       , LLcmd OPpush (One $ Pimm $ fromIntegral line)
+       ]
+    ++ checkcall  -- if array access is invalid this never returns
+    ++ [LLcmd OPspadd (One $ Pimm 8)]
+    ++ e1
+    ++ [LLcmd OPcp (Two (Preg 2) (Pvar var))]
+    ++ [LLcmd OPpop (One $ Preg 1)]
+    ++ [LLcmd OPcp (Two (Pderef (Preg 2) (Preg 1)) (Preg 0))]
 llSA (Decrease (SingleElement var))
-  = return [(LLcmd OPdec (One $ Pvar var))]
+  = return [LLcmd OPdec (One $ Pvar var)]
 llSA (Decrease (ArrayElement var nexp)) = do
   llnexp <- llExp nexp
   checkcall <- llExp (FunctionCall "_check_arr" [])
   (line, _) <- getCodePos
-  return $ llnexp
-           ++ [ LLcmd OPpush (One $ Preg 0)
-              , LLcmd OPpush (One $ Pvar var)
-              , LLcmd OPpush (One $ Pimm $ fromIntegral line)
-              ]
-           ++ checkcall  -- if array access is invalid this never returns
-           ++ [LLcmd OPspadd (One $ Pimm 12)]
-           ++ [LLcmd OPcp (Two (Preg 1) (Pvar var))]
-           ++ [(LLcmd OPdec (One $ Pderef (Preg 1) (Preg 0)))]
+  return $
+    llnexp
+    ++ [ LLcmd OPpush (One $ Preg 0)
+       , LLcmd OPpush (One $ Pvar var)
+       , LLcmd OPpush (One $ Pimm $ fromIntegral line)
+       ]
+    ++ checkcall  -- if array access is invalid this never returns
+    ++ [LLcmd OPspadd (One $ Pimm 12)]
+    ++ [LLcmd OPcp (Two (Preg 1) (Pvar var))]
+    ++ [LLcmd OPdec (One $ Pderef (Preg 1) (Preg 0))]
 llSA (Increase (SingleElement var))
-  = return [(LLcmd OPinc (One $ Pvar var))]
+  = return [LLcmd OPinc (One $ Pvar var)]
 llSA (Increase (ArrayElement var nexp)) = do
   llnexp <- llExp nexp
   checkcall <- llExp (FunctionCall "_check_arr" [])
   (line, _) <- getCodePos
-  return $ llnexp
-           ++ [ LLcmd OPpush (One $ Preg 0)
-              , LLcmd OPpush (One $ Pvar var)
-              , LLcmd OPpush (One $ Pimm $ fromIntegral line)
-              ]
-           ++ checkcall  -- if array access is invalid this never returns
-           ++ [LLcmd OPspadd (One $ Pimm 12)]
-           ++ [LLcmd OPcp (Two (Preg 1) (Pvar var))]
-           ++ [(LLcmd OPinc (One $ Pderef (Preg 1) (Preg 0)))]
-llSA (Return exp1) = do
-  e1 <- llExp (optimiseExpr exp1)
-  return $ e1
-           ++ [LLcmd OPret Zero]
-llSA (Print (String str)) = do
-  fc <- (llExp (FunctionCall "_print_string" [String str]))
-  return fc
-llSA (Print (Char c)) = do
-  fc <- (llExp (FunctionCall "_print_char" [Char c]))
-  return fc
+  return $
+    llnexp
+    ++ [ LLcmd OPpush (One $ Preg 0)
+       , LLcmd OPpush (One $ Pvar var)
+       , LLcmd OPpush (One $ Pimm $ fromIntegral line)
+       ]
+    ++ checkcall  -- if array access is invalid this never returns
+    ++ [LLcmd OPspadd (One $ Pimm 12)]
+    ++ [LLcmd OPcp (Two (Preg 1) (Pvar var))]
+    ++ [LLcmd OPinc (One $ Pderef (Preg 1) (Preg 0))]
+llSA (Return exp1) =
+  fmap (++ [LLcmd OPret Zero]) $ llExp (optimiseExpr exp1)
+llSA (Print (String str)) =
+  llExp (FunctionCall "_print_string" [String str])
+llSA (Print (Char c)) = 
+  llExp (FunctionCall "_print_char" [Char c])
 llSA (Print (Id (SingleElement v))) = do
   Just (vt, _) <- lookupSym v
   fc <- llExp (FunctionCall (case vt of
-                               MaliceChar -> "_print_char"
-                               MaliceString -> "_print_string"
-                               MaliceInt -> "_print_int"
-                               _ -> error $ "Cannot print a " ++ (show vt)
+                                MaliceChar -> "_print_char"
+                                MaliceString -> "_print_string"
+                                MaliceInt -> "_print_int"
+                                _ -> error $ "Cannot print a " ++ show vt
                             )
-                            []
+               []
               )
-  return $ [LLcmd OPpush (One $ Pvar v)]
-           ++ fc
-           ++ [LLcmd OPspadd (One $ Pimm 4)]
+  return $
+    [LLcmd OPpush (One $ Pvar v)]
+    ++ fc
+    ++ [LLcmd OPspadd (One $ Pimm 4)]
 llSA (Print exp1) = do
   e1 <- (llExp (optimiseExpr exp1))
   fc <- (llExp (FunctionCall "_print_int" []))
@@ -281,17 +280,18 @@ llSA (Get (ArrayElement var nexp)) = do
   e1 <- llExp (FunctionCall "_read_int" [])
   checkcall <- llExp (FunctionCall "_check_arr" [])
   (line, _) <- getCodePos
-  return $ llnexp
-           ++ [ LLcmd OPpush (One $ Preg 0)
-              , LLcmd OPpush (One $ Pvar var)
-              , LLcmd OPpush (One $ Pimm $ fromIntegral line)
-              ]
-           ++ checkcall  -- if array access is invalid this never returns
-           ++ [LLcmd OPspadd (One $ Pimm 8)]
-           ++ e1
-           ++ [LLcmd OPcp (Two (Preg 2) (Pvar var))]
-           ++ [LLcmd OPpop (One $ Preg 1)]
-           ++ [LLcmd OPcp (Two (Pderef (Preg 2) (Preg 1)) (Preg 0))]
+  return $
+    llnexp
+    ++ [ LLcmd OPpush (One $ Preg 0)
+       , LLcmd OPpush (One $ Pvar var)
+       , LLcmd OPpush (One $ Pimm $ fromIntegral line)
+       ]
+    ++ checkcall  -- if array access is invalid this never returns
+    ++ [LLcmd OPspadd (One $ Pimm 8)]
+    ++ e1
+    ++ [LLcmd OPcp (Two (Preg 2) (Pvar var))]
+    ++ [LLcmd OPpop (One $ Preg 1)]
+    ++ [LLcmd OPcp (Two (Pderef (Preg 2) (Preg 1)) (Preg 0))]
 llSA (FunctionCallS fc@(FunctionCall _ _))
   = llExp fc
 llSA (FunctionCallS _) = do
@@ -304,29 +304,31 @@ llSA (Until syt e body) = do
   pushSymTab syt
   lb <- llSL body
   newsyt <- popSymTab
-  return $ [LLcmd OPlabel (One $ Plbl startlbl)]
-           ++ le
-           ++ [ LLcmd OPjmpnz (Two (Plbl endlbl) (Preg 0))
-              , LLscope newsyt lb
-              , LLcmd OPjmp (One $ Plbl startlbl)
-              , LLcmd OPlabel (One $ Plbl endlbl)
-              ]
+  return $
+    [LLcmd OPlabel (One $ Plbl startlbl)]
+    ++ le
+    ++ [ LLcmd OPjmpnz (Two (Plbl endlbl) (Preg 0))
+       , LLscope newsyt lb
+       , LLcmd OPjmp (One $ Plbl startlbl)
+       , LLcmd OPlabel (One $ Plbl endlbl)
+       ]
 llSA (IfElse list) = do
   endlbl <- uniqLabel "ll"
   ls <- mapM (\(syt, e, body) -> do
-                                 le <- llExp e
-                                 pushSymTab syt
-                                 lb <- llSL body
-                                 newsyt <- popSymTab
-                                 lbl <- uniqLabel "ll"
-                                 return $ le
-                                          ++ [ LLcmd OPjmpz (Two (Plbl lbl) (Preg 0))
-                                             , LLscope newsyt lb
-                                             , LLcmd OPjmp (One $ Plbl endlbl)
-                                             , LLcmd OPlabel (One $ Plbl lbl)
-                                             ]
+                 le <- llExp e
+                 pushSymTab syt
+                 lb <- llSL body
+                 newsyt <- popSymTab
+                 lbl <- uniqLabel "ll"
+                 return $
+                   le
+                   ++ [ LLcmd OPjmpz (Two (Plbl lbl) (Preg 0))
+                      , LLscope newsyt lb
+                      , LLcmd OPjmp (One $ Plbl endlbl)
+                      , LLcmd OPlabel (One $ Plbl lbl)
+                      ]
              ) list
-  return $ concat $ (ls ++ [[LLcmd OPlabel (One $ Plbl endlbl)]])
+  return $ concat $ ls ++ [[LLcmd OPlabel (One $ Plbl endlbl)]]
 
 
 
@@ -334,7 +336,7 @@ llS :: Statement -> SIM [LLcmd]
 llS s = do
   putCodePos cp
   ll <- llSA sa
-  return $ (LLcmd OPsrcline (One $ Pimm $ fromIntegral line)) : ll
+  return $ LLcmd OPsrcline (One $ Pimm $ fromIntegral line) : ll
   where
     (cp@(line, _), sa) = s
 
@@ -343,7 +345,7 @@ llSL :: StatementList -> SIM [LLcmd]
 llSL ss = do
   localsyt <- popSymTab
   localsyt2 <- scanSymTab localsyt
-  pushSymTab $ localsyt2
+  pushSymTab localsyt2
   l <- mapM llS ss
   return $ concat l
 --  si <- get
@@ -356,5 +358,4 @@ llFunc sl fn fargs syt stt
   = (code, newsyt, strtab, mvc)
   where
     (code, (_, _, [newsyt], strtab, _, _, mvc))
-      = (((flip runState) (fn, fargs, [syt], stt, (-1, -1), 0, 0)).llSL) sl
-
+      = runState (llSL sl) (fn, fargs, [syt], stt, (-1, -1), 0, 0)

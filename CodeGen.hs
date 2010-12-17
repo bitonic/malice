@@ -23,24 +23,25 @@ registerName 2 = "ecx"
 registerName 3 = "edx"
 registerName 4 = "esi"
 registerName 5 = "edi"
-registerName r = error ("Error: Register index too high (" ++ (show r) ++ "). This really should not happen...")
+registerName r = error ("Error: Register index too high ("
+                        ++ show r ++ "). This really should not happen...")
 
 
 cgLLparam :: LLparam -> SIM String
 cgLLparam (Pvar v) = do
   sym <- lookupSym v
   return $ case sym of
-    Just (_, vid) -> "dword [ebp+" ++ (show (vid * (-4))) ++ "]"
+    Just (_, vid) -> "dword [ebp+" ++ show (vid * (-4)) ++ "]"
     Nothing -> error $ "Variable " ++ v ++ " has not been defined (yet)."
 cgLLparam (Preg r)
   = return $ registerName r
 cgLLparam (Pimm i)
-  = return $ "dword " ++ (show i)
+  = return $ "dword " ++ show i
 cgLLparam (Plbl l)
   = return l
 cgLLparam (Pderef p1 (Pimm i)) = do -- only with registers and immediates
-  c1 <- cgLLparam p1
-  return $ "[" ++ c1 ++ "+4*" ++ (show i) ++ "]"
+  c1 <-cgLLparam p1
+  return $ "[" ++ c1 ++ "+4*" ++ show i ++ "]"
 cgLLparam (Pderef p1 p2) = do -- only with registers and registers
   c1 <- cgLLparam p1
   c2 <- cgLLparam p2
@@ -115,12 +116,10 @@ cgJumpCMP CMPor = []
 
 cgLine :: LLcmd -> SIM String
 -- Some virtual statements for control purposes.
-cgLine (LLdecl v (MaliceArraySize _ _)) = do
-  initzero <- cgLine (LLcmd OPcp (Two (Pvar v) (Pimm 0)))
-  return initzero
-cgLine (LLdecl v (MaliceArray _)) = do
-  initzero <- cgLine (LLcmd OPcp (Two (Pvar v) (Pimm 0)))
-  return initzero
+cgLine (LLdecl v (MaliceArraySize _ _)) =
+  cgLine (LLcmd OPcp (Two (Pvar v) (Pimm 0)))
+cgLine (LLdecl v (MaliceArray _)) =
+  cgLine (LLcmd OPcp (Two (Pvar v) (Pimm 0)))
 cgLine (LLdecl v _) = do
 --cgLine (LLDecl v t) = do
   --sts <- getSymTabs
@@ -131,7 +130,7 @@ cgLine (LLdecl v _) = do
 cgLine (LLcmd OPlabel (One (Plbl l)))
   = return $ l ++ ":\n"
 cgLine (LLcmd OPsrcline (One (Pimm i)))
-  = return $ "\n; Source line " ++ (show i) ++ "\n"
+  = return $ "\n; Source line " ++ show i ++ "\n"
 cgLine (LLcmd OPret Zero) = do
   fn <- getFuncName
   return $ "jmp end_" ++ fn ++ "\n"
@@ -145,35 +144,34 @@ cgLine (LLscope symtab ll) = do
 cgLine (LLcmd OPdiv (Two (Preg r1) (Preg r2)))
 -- WARNING: If r1 == 3 and r2 == 0 we will have loss of information...
 -- To be fixed later with register allocation.
-  = return $ "push eax\n"
+  = return $
+    "push eax\n"
     ++ "push edx\n"
-    ++ "mov eax, " ++ (registerName r1) ++ "\n"
+    ++ "mov eax, " ++ registerName r1 ++ "\n"
     ++ "mov edx, 0\n"
-    ++ "idiv " ++ (registerName r2) ++ "\n"
-    ++ "mov " ++ (registerName r1) ++ ", eax\n"
-    ++ (if (r1 /= 3) then "pop edx\n" else "add esp, 4\n")
-    ++ (if (r1 /= 0) then "pop eax\n" else "add esp, 4\n")
+    ++ "idiv " ++ registerName r2 ++ "\n"
+    ++ "mov " ++ registerName r1 ++ ", eax\n"
+    ++ (if r1 /= 3 then "pop edx\n" else "add esp, 4\n")
+    ++ (if r1 /= 0 then "pop eax\n" else "add esp, 4\n")
 cgLine (LLcmd OPmod (Two (Preg r1) (Preg r2)))
 -- WARNING: If r1 == 3 and r2 == 0 we will have loss of information...
 -- To be fixed later with register allocation.
   = return $ "push eax\n"
     ++ "push edx\n"
-    ++ "mov eax, " ++ (registerName r1) ++ "\n"
+    ++ "mov eax, " ++ registerName r1 ++ "\n"
     ++ "mov edx, 0\n"
-    ++ "idiv " ++ (registerName r2) ++ "\n"
-    ++ "mov " ++ (registerName r1) ++ ", edx\n"
-    ++ (if (r1 /= 3) then "pop edx\n" else "add esp, 4\n")
-    ++ (if (r1 /= 0) then "pop eax\n" else "add esp, 4\n")
-cgLine (LLcmd OPdiv (Two (Preg r1) (Pimm imm))) = do
-  c <- cgLL [ (LLcmd OPcp (Two (Preg $ r1+1) (Pimm imm)))
-            , (LLcmd OPdiv (Two (Preg r1) (Preg $ r1+1)))
-            ]
-  return c
-cgLine (LLcmd OPmod (Two (Preg r1) (Pimm imm))) = do
-  c <- cgLL [ (LLcmd OPcp (Two (Preg $ r1+1) (Pimm imm)))
-            , (LLcmd OPmod (Two (Preg r1) (Preg $ r1+1)))
-            ]
-  return c
+    ++ "idiv " ++ registerName r2 ++ "\n"
+    ++ "mov " ++ registerName r1 ++ ", edx\n"
+    ++ (if r1 /= 3 then "pop edx\n" else "add esp, 4\n")
+    ++ (if r1 /= 0 then "pop eax\n" else "add esp, 4\n")
+cgLine (LLcmd OPdiv (Two (Preg r1) (Pimm imm))) =
+  cgLL [ LLcmd OPcp (Two (Preg $ r1+1) (Pimm imm))
+       , LLcmd OPdiv (Two (Preg r1) (Preg $ r1+1))
+       ]
+cgLine (LLcmd OPmod (Two (Preg r1) (Pimm imm))) =
+  cgLL [ LLcmd OPcp (Two (Preg $ r1+1) (Pimm imm))
+       , LLcmd OPmod (Two (Preg r1) (Preg $ r1+1))
+       ]
 cgLine (LLcmd OPdiv _)
   = error "cgLine: Impossible operand combination for LLDiv on i386"
 cgLine (LLcmd OPmod _)
@@ -182,25 +180,26 @@ cgLine (LLcmd OPmod _)
 -- Conditional jumps.
 cgLine (LLcmd OPjmpz (Two (Plbl l) p1)) = do
   parms <- cgLL2param p1 p1
-  return $ "test " ++ parms ++ "\n"
+  return $
+    "test " ++ parms ++ "\n"
     ++ "je " ++ l ++ "\n"
 cgLine (LLcmd OPjmpnz (Two (Plbl l) p1)) = do
   parms <- cgLL2param p1 p1
-  return $ "test " ++ parms ++ "\n"
+  return $
+    "test " ++ parms ++ "\n"
     ++ "jne " ++ l ++ "\n"
 --
 -- Comparisons.
 cgLine (LLcmp CMPand ps) = cgLine (LLcmd OPand ps)
 cgLine (LLcmp CMPor  ps) = cgLine (LLcmd OPor  ps)
-cgLine (LLcmp cmp (Two p1 p2)) = do
-  c <- cgCmp (cgJumpCMP cmp) p1 p1 p2
-  return $ c
+cgLine (LLcmp cmp (Two p1 p2)) =
+  cgCmp (cgJumpCMP cmp) p1 p1 p2
 cgLine (LLcmp _ _) = error "CodeGen: Invalid parameters for comparison."
 --
 -- Commands.
 cgLine (LLcmd op ps) = do
   parms <- cgLLparams ps
-  return $ (cgOP op) ++ " " ++ parms ++ "\n"
+  return $ cgOP op ++ " " ++ parms ++ "\n"
 --cgLine _
 --  = error "cgLine: Unknown operator/operand combination"
 
@@ -257,11 +256,9 @@ cgFunc body = do
 
 
 cgDA :: DeclarationAct -> StringTable -> (String, StringTable)
-cgDA (Function symtab name arglist _ body) stt
---  | name /= "_main" = error (show $ funcArgsSymTab arglist)
-  | otherwise  = (asmcode, newstt)
+cgDA (Function symtab name arglist _ body) stt = (asmcode, newstt)
   where
-    asmcode = (((flip evalState) (name, fargssyt, [newsyt], newstt, (-1, -1), 0, mvc)) . cgFunc) llcode
+    asmcode = evalState (cgFunc llcode) (name, fargssyt, [newsyt], newstt, (-1, -1), 0, mvc)
     (llcode, newsyt, newstt, mvc) = llFunc body name fargssyt symtab stt
     fargssyt = funcArgsSymTab arglist
 
@@ -269,7 +266,7 @@ cgDA (Function symtab name arglist _ body) stt
 
 cgD :: Declaration -> StringTable -> (String, StringTable)
 --cgD (pos, (Function symtab name arglist rettype body))
-cgD ( _, da ) stt = cgDA da stt
+cgD ( _, da ) = cgDA da
 
 
 
@@ -279,7 +276,7 @@ cgDL [] stt
 cgDL (d : ds) stt
   = (code ++ code2, newstt2)
   where
-    (code2, newstt2) = (cgDL ds newstt)
+    (code2, newstt2) = cgDL ds newstt
     (code, newstt) = cgD d stt
 
 
@@ -289,6 +286,6 @@ cgAST (AST _ dl)
     ++ code
     ++ "\n\n"
     ++ "section .data\n"
-    ++ concat [ "_str_" ++ (show i) ++ ": db " ++ (strToAsm s) ++ ",0\n" | (i, s) <- strtab ]
+    ++ concat ["_str_" ++ show i ++ ": db " ++ strToAsm s ++ ",0\n" | (i, s) <- strtab]
   where
-    (code, strtab) = (cgDL dl [])
+    (code, strtab) = cgDL dl []

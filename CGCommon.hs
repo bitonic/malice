@@ -13,7 +13,7 @@ module CGCommon
 
 import Common
 import Data.Int (Int32)
-import Char ( ord )
+import Data.Char ( ord )
 --import Data.Map ( Map )
 import Data.Maybe
 import qualified Data.Map as M
@@ -105,17 +105,17 @@ symMaxOffset (x : xs)
       [] -> symMaxOffset xs
       _ -> maximum offsets
   where
-    offsets = [ o | (_, (_, o)) <- (M.toAscList x) ]
+    offsets = [ o | (_, (_, o)) <- M.toAscList x]
 
 -- prepares the given symtable based on existing number of entries on the stack
 scanSymTab :: SymbolTable -> SIM SymbolTable
 scanSymTab syt = do
   sts <- getSymTabs
-  oldcount <- return $ symMaxOffset sts
-  newsyt <- return $ prepSymTabOffsets (oldcount + 1) syt
+  let oldcount = symMaxOffset sts
+  let newsyt = prepSymTabOffsets (oldcount + 1) syt
   oldmvc <- getMaxVarCtr
   putMaxVarCtr $ max oldmvc (symMaxOffset [newsyt])
-  return $ newsyt
+  return newsyt
 
 typeSize :: MaliceType -> Int
 --typeSize (MaliceArray _) = 2
@@ -130,14 +130,14 @@ prepSymTabOffsets' num ( (v, (t, _)) : ss )
   = (v, (t, num - 1 + typeSize t )) : prepSymTabOffsets' (num + typeSize t) ss
 
 prepSymTabOffsets :: Int -> SymbolTable -> SymbolTable
-prepSymTabOffsets startid = M.fromList . (prepSymTabOffsets' startid) . M.toAscList
+prepSymTabOffsets startid = M.fromList . prepSymTabOffsets' startid . M.toAscList
 
 -- A hack to have "valid" offsets for function arguments on the stack
 funcArgsSymTab' :: FunctionArgs -> SymbolTable -> SymbolTable
 funcArgsSymTab' [] st
   = st
 funcArgsSymTab' ((v, t) : xs) st
-  = funcArgsSymTab' xs (M.insert v (t, (-4) - (length xs) ) st)
+  = funcArgsSymTab' xs (M.insert v (t, (-4) - length xs) st)
 
 funcArgsSymTab :: FunctionArgs -> SymbolTable
 funcArgsSymTab fa
@@ -157,10 +157,10 @@ putStrTab stt = do
 uniqStr :: String -> SIM Label
 uniqStr str = do
   stt <- getStrTab
-  sid <- return $ length stt
+  let sid = length stt
 --  fn <- getFunName
   putStrTab $ (sid, str) : stt
-  return $ "_str_" ++ (show sid)
+  return $ "_str_" ++ show sid
 
 
 getCodePos :: SIM (Int, Int)
@@ -176,7 +176,7 @@ putCodePos cp = do
 showCodePos :: SIM String
 showCodePos = do
   (line, col) <- getCodePos
-  return $ "In line " ++ (show line) ++ ":" ++ (show col) ++ ": "
+  return $ "In line " ++ show line ++ ":" ++ show col ++ ": "
 
 
 getLabelCtr :: SIM Int
@@ -194,7 +194,7 @@ uniqLabel prefix = do
   fn <- getFuncName
   lc <- getLabelCtr
   putLabelCtr (lc + 1)
-  return $ "_" ++ prefix ++ "_" ++ fn ++ "_" ++ (show lc)
+  return $ "_" ++ prefix ++ "_" ++ fn ++ "_" ++ show lc
 
 
 getMaxVarCtr :: SIM MaxVarCount
@@ -214,6 +214,6 @@ strToAsm s = "\"" ++ strToAsm' s ++ "\",0"
   where
     strToAsm' [] = []
     strToAsm' (c : s')
-      | elem c escapedChars = "\"," ++ show (ord c) ++ ",\"" ++ strToAsm' s'
-      | otherwise           = c : strToAsm' s'
+      | c `elem` escapedChars = "\"," ++ show (ord c) ++ ",\"" ++ strToAsm' s'
+      | otherwise             = c : strToAsm' s'
     escapedChars = "\0\a\b\f\n\r\t\v\"\&\'\\"

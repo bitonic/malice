@@ -17,7 +17,7 @@ type Immediate = Int32
 -- Calculate the register cost of a subexpression
 exprWeight :: Expr -> Int
 exprWeight (BinOp _ exp1 exp2)
-  = max (exprWeight exp1) ((exprWeight exp2) + 1)
+  = max (exprWeight exp1) (exprWeight exp2) + 1
 exprWeight (UnOp _ exp1)
   = exprWeight exp1
 exprWeight (Int _)
@@ -35,9 +35,8 @@ exprWeight (FunctionCall _ _)
 
 flipBinOpArgs :: Expr -> Expr
 flipBinOpArgs (BinOp op e e')
-  | op `elem` ["+", "*", "^", "&", "|", "==", "&&", "||", "!="]
-     = ( BinOp op e' e )
-  | otherwise = ( BinOp op e e' )
+  | op `elem` ["+", "*", "^", "&", "|", "==", "&&", "||", "!="] = BinOp op e' e
+  | otherwise = BinOp op e e'
 flipBinOpArgs e = e
 
 boolToExpr :: Bool -> Expr
@@ -72,7 +71,7 @@ optimiseExpr (BinOp "||" (Int 1) _) = Int 1
 optimiseExpr (BinOp "||" (Int 0) e) = e
 optimiseExpr (BinOp "!=" (Int x) (Int x')) = boolToExpr $ x == x'
 optimiseExpr (BinOp op e e') = BinOp op (optimiseExpr e) (optimiseExpr e')
-optimiseExpr (UnOp "-" (Int x)) = Int $ 0 - x
+optimiseExpr (UnOp "-" (Int x)) = Int $ negate x
 optimiseExpr (UnOp "~" (Int x)) = Int $ complement x
 optimiseExpr (UnOp op e) = UnOp op $ optimiseExpr e
 --
