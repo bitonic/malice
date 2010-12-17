@@ -1,9 +1,0 @@
-i was a number but what was i? i became fib(i).
-i spoke and "\n" said Alice.
-
-The room fib(number n) contained a number
-  either (n <= 1) so
-    Alice found n.
-  or
-    Alice found (fib(n-1) + fib(n-2)).
-  Alice was unsure which.
