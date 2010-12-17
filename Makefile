@@ -2,7 +2,7 @@ GHCFLAGS = -Wall -O2 --make -fno-warn-missing-signatures -fno-warn-unused-do-bin
 
 .PHONY : malice2asm
 malice2asm: libmalice.o
-	ghc ${GHCFLAGS} -o malice2asm Common.hs Parser.hs TypeCheck.hs OptimExpr.hs CGCommon.hs LLGen.hs CodeGen.hs Malice.hs
+	ghc ${GHCFLAGS} -o malice2asm Common.hs Parser.hs TypeCheck.hs OptimiseExpr.hs CGCommon.hs LLGen.hs CodeGen.hs Malice.hs
 
 
 .PHONY : compile

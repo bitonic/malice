@@ -6,7 +6,7 @@ module LLGen
 
 import Common
 import CGCommon
-import OptimExpr
+import OptimiseExpr
 import Data.Bits
 import Data.Char
 import Control.Monad.State
