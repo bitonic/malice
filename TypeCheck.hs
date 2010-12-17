@@ -152,6 +152,7 @@ sAct (IfElse blocks) = liftM IfElse (mapM block blocks)
     block (_, e, sl) = do
       (st, sl') <- conditional e sl
       return (st, e, sl')
+sAct (Return _) = error "Return statements should not be here."
 
 conditional e sl = do
   t <- expr e
