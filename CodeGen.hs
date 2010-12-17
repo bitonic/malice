@@ -222,6 +222,8 @@ asmPrologue = "\n"
               ++ "extern _print_char\n"
               ++ "extern _print_string\n"
               ++ "extern _print_int\n"
+              ++ "extern _read_char\n"
+              ++ "extern _read_string\n"
               ++ "extern _read_int\n"
 
 

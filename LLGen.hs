@@ -149,9 +149,11 @@ llExp (FunctionCall fn args) = do
   llargs <- mapM llExp args
   return $
     concat (reverse $ map (++ [LLcmd OPpush (One $ Preg 0)]) llargs)
-    ++ [ LLcmd OPcall (One $ Plbl fn)
-       , LLcmd OPspadd (One $ Pimm $ fromIntegral (4 * length args))
-       ]
+    ++ [ LLcmd OPcall (One $ Plbl fn)]
+    ++ (if length args > 0
+        then [LLcmd OPspadd (One $ Pimm $ fromIntegral (4 * length args))]
+        else []
+       )
 llExp (String str) = do
   strlbl <- uniqStr str
   return [LLcmd OPcp (Two (Preg 0) (Plbl strlbl))]
@@ -273,7 +275,15 @@ llSA (Print exp1) = do
   fc <- (llExp (FunctionCall "_print_int" []))
   return $ e1 ++ [LLcmd OPpush (One $ Preg 0)] ++ fc ++ [LLcmd OPspadd (One $ Pimm 4)]
 llSA (Get (SingleElement var)) = do
-  e1 <- llExp (FunctionCall "_read_int" [])
+  Just (vt, _) <- lookupSym var
+  e1 <- llExp (FunctionCall (case vt of
+                                MaliceInt -> "_read_int"
+                                MaliceChar -> "_read_char"
+                                MaliceString -> "_read_string"
+                                _ -> error "Reading only implemented for number, letter, sentence."
+                            )
+               []
+              )
   return $ e1 ++ [LLcmd OPcp (Two (Pvar var) (Preg 0))]
 llSA (Get (ArrayElement var nexp)) = do
   llnexp <- llExp nexp

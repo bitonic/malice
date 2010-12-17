@@ -34,7 +34,7 @@ int 0x80
 
 
 
-; ALLOCATION function for new garbage
+; ALLOCATION function for new garbage memory
 
 global _malice_alloc
 _malice_alloc:		; void* maliceAlloc(int size, int sourceline)
@@ -234,11 +234,85 @@ ret
 
 
 
+; READING function for CHARACTERS (8-bit in 32-bit, LSB in Intel byte order)
+
+global _read_char
+_read_char:	; int readChar(void)
+push ebx
+push ecx
+push edx
+
+sub esp, 4	; make room for character to be read
+
+mov edx, 1	; number of chars
+mov ecx, esp	; character buffer
+mov ebx, 0	; stdin fd
+mov eax, 3	; read()
+int 0x80
+
+cmp eax, 0
+jne _read_char_ok	; No end of input -> return char
+
+mov eax, 0		; End of Input -> return 0
+jmp _read_char_end
+
+_read_char_ok:
+mov eax, 0
+mov al, [esp]
+
+_read_char_end:
+add esp, 4
+pop edx
+pop ecx
+pop ebx
+ret
+
+
+
+
+
+; READING function for STRINGS (8-bit)
+; (limited to 1023 characters, no buffer overflow protection)
+
+global _read_string
+_read_string:	; char* readString(void)
+push ebx	; string size counter
+push ecx	; string address
+
+push dword -1	; don't care about line numbers for now
+push dword 1024	; that should be enough for simple strings.
+		; Dynamic expansion can be done later.
+call _malice_alloc
+add esp, 8
+mov ecx, eax
+mov ebx, 0
+
+_read_string_next_char:
+call _read_char
+mov [ecx+ebx], al
+cmp al, 10
+je _read_string_end	; Newline -> Terminate string
+cmp al, 0
+je _read_string_end	; End of Input -> Terminate string
+inc ebx
+jmp _read_string_next_char
+
+_read_string_end:
+mov [ecx+ebx], byte 0	; terminate the string
+mov eax, ecx		; return its address
+
+pop ecx
+pop ebx
+ret
+
+
+
+
+
 ; READING function for INTEGERS (signed, 32-bit)
 
 global _read_int
 _read_int:	; int readInt(void)
-push eax
 push ebx
 push ecx
 push edx
@@ -265,11 +339,11 @@ mov eax, 0
 mov al, [esp]
 
 cmp al, '-'
-jne _read_int_process_num
+jne _read_int_process_digit
 mov esi, 1
 jmp _read_int_next
 
-_read_int_process_num:
+_read_int_process_digit:
 cmp al, 0x30
 jb _read_int_neg	; char < '0'
 cmp al, 0x39
@@ -313,7 +387,6 @@ pop esi
 pop edx
 pop ecx
 pop ebx
-add esp, 4	; pop eax
 ret
 
 
