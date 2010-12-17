@@ -50,9 +50,9 @@ p_identifier = try p_arrayEl
                <?> "identifier"
 p_arrayEl = do
   var <- p_varName
-  p_stringS "'s"
+  _ <- p_stringS "'s"
   pos <- p_expr
-  p_stringSS "piece"
+  _ <- p_stringSS "piece"
   return (ArrayElement var pos)
 
 -- Actual parser
@@ -101,11 +101,11 @@ p_incdec v = choice [ p_stringSS "ate" >> return (Increase v)
                     ]
 
 p_declare v = do
-  p_cstringS "was a"
+  _ <- p_cstringS "was a"
   liftM (flip Declare v) p_type
 
 p_declarearray v = do
-  p_stringS "had"
+  _ <- p_stringS "had"
   size <- p_expr
   t <- p_type
   return (Declare (MaliceArraySize t size) v)
@@ -120,15 +120,15 @@ p_get = p_cstringS "what was" >> liftM Get p_identifier
 
 -- Composite statements
 p_until = do
-  p_string "eventually"
+  _ <- p_string "eventually"
   e <- p_parens p_expr
-  p_stringS "because"
+  _ <- p_stringS "because"
   liftM (Until empty e) $ manyTill p_statement $ try (p_cstringSS "enough times")
 
 p_ifelse = do
-  (p_string "perhaps" <|> p_string "either")
+  _ <- (p_string "perhaps" <|> p_string "either")
   e <- p_expr
-  p_stringS "so"
+  _ <- p_stringS "so"
   sl <- statements
   fmap IfElse (triplet [(empty, e, sl)])
   where
@@ -137,7 +137,7 @@ p_ifelse = do
                                              <|> lookAhead end)
     end = p_cstringSS "Alice was unsure" >> optional (p_stringSS "which")
     ifelse now = do
-      p_string "maybe"
+      _ <- p_string "maybe"
       e <- p_parens p_expr <* p_stringS "so"
       sl <- statements
       triplet (now ++ [(empty, e, sl)])
@@ -146,22 +146,22 @@ p_ifelse = do
       
 p_function = do
   p_white
-  p_cstring "The room"
+  _ <- p_cstring "The room"
   name <- p_varName
   args <-  p_parens $ sepBy (liftM2 (flip (,)) p_type p_varName) (p_string ",")
-  p_cstringS "contained a"
+  _ <- p_cstringS "contained a"
   ret <- p_type
   sl <- manyTill p_statement p_nextfunction
   return $ Function empty name args ret sl
 
 p_changer = do
   p_white
-  p_cstring "The Looking-Glass"
+  _ <- p_cstring "The Looking-Glass"
   name <- p_varName
-  p_cstringS "changed a"
+  _ <- p_cstringS "changed a"
   t <- p_type
   sl <- manyTill (lookAhead (notFollowedBy (p_return >> return 'x')) >> p_statement) p_nextfunction
-  many p_separator
+  _ <- many p_separator
   return $ Function empty name [("it", t)] t (
     sl ++ [((0,0), Return (Id (SingleElement "it")))])
   
@@ -171,7 +171,7 @@ p_nextfunction =
 
 p_changercall = do
   var <- p_identifier
-  p_cstringS "went through"
+  _ <- p_cstringS "went through"
   function <- p_varName
   return (Assign var (FunctionCall function [Id var]))
 
