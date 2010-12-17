@@ -133,9 +133,9 @@ sAct s@(Assign var e) = do
   t2 <- expr e
   if t1 == t2
     then return s
-    else throwTypeError ("Trying to assign a value of type " ++ show t2 ++
-                         " to variable \"" ++ show var ++ "\" of type " ++
-                         show t1 ++ ".")
+    else throwTypeError ("Trying to assign a value of type \"" ++ show t2 ++
+                         "\" to variable \"" ++ show var ++ "\" of type \"" ++
+                         show t1 ++ "\".")
 sAct s@(Declare t v) = do
   st <- getST
   case M.lookup v st of
@@ -162,8 +162,8 @@ conditional e sl = do
              sl' <- statementList sl;
              st <- popST;
              return (st, sl');}
-    else throwTypeError ("Conditional expressions must be of type " ++
-                         show MaliceInt ++ ".")
+    else throwTypeError ("Conditional expressions must be of type \"" ++
+                         show MaliceInt ++ "\".")
 
 -- Expression checker
 expr :: Expr -> TypeMonad MaliceType
@@ -180,8 +180,8 @@ expr (BinOp op e1 e2) = do
   if t1 == t2
     then opTypes t1 op
     else throwTypeError ("Trying to apply operator \"" ++ op ++ "\" with arguments" ++
-                         " of different types " ++ show t1 ++ " and " ++ show t2 ++
-                         ".")
+                         " of different types \"" ++ show t1 ++ "\" and \"" ++
+                         show t2 ++ "\".")
 expr (FunctionCall f args) = do
   dm <- getDM
   case M.lookup f dm of
@@ -195,8 +195,7 @@ expr (FunctionCall f args) = do
           if and (zipWith (\(_, t1) t2 -> t1 == t2) argsF argsT) then
             return t
           else
-            throwTypeError ("Invalid types for the arguments of function \"" ++
-                            f ++ "\".");
+            error (show argsT ++ " " ++ show argsF)
           }
         else throwTypeError ("Invalid number of arguments for function \"" ++ f ++
                              "\", " ++ show (length args) ++ " instead of " ++
@@ -206,7 +205,7 @@ expr (FunctionCall f args) = do
 -- Operators and types
 opTypes MaliceInt _ = return MaliceInt
 opTypes t op = throwTypeError ("The operator \"" ++ op ++
-                               "\" can not be used with type" ++ show t ++ ".")
+                               "\" can not be used with type \"" ++ show t ++ "\".")
 
 maliceTypeCheck :: AST -> Either TypeError AST
 maliceTypeCheck ast@(AST fn _) =

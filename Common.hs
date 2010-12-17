@@ -25,8 +25,16 @@ data MaliceType = MaliceInt
                 | MaliceArray MaliceType
                 | MaliceArraySize MaliceType Expr
                          
+instance Show MaliceType where
+  show MaliceInt = "number"
+  show MaliceChar = "letter"
+  show MaliceString = "sentence"
+  show (MaliceArray t) = "spider " ++ show t
+  show (MaliceArraySize t _) = show (MaliceArray t)
+
 instance Eq MaliceType where                      
   (MaliceArray t) == (MaliceArraySize t' _) = t == t'
+  (MaliceArraySize t _) == (MaliceArray t') = t == t'  
   (MaliceArray t) == (MaliceArray t') = t == t'
   (MaliceArraySize t s) == (MaliceArraySize t' s') = t == t' && s == s'
   MaliceInt == MaliceInt = True
@@ -111,13 +119,8 @@ initEmpty xs = init xs
 -- Show functions.
 -- WARINING: UGLY CODE, for debugging purposes
 
-instance Show MaliceType where
-  show MaliceInt = "number"
-  show MaliceChar = "letter"
-  show MaliceString = "sentence"
-  show (MaliceArray t) = "spider " ++ show t
-  show (MaliceArraySize t _) = show (MaliceArray t)
                   
+
 instance Show AST where
   show (AST fn dl) =
     "File " ++ fn ++ ":\n\n" ++
