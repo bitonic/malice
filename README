@@ -1,1 +1,8 @@
-Refer to report/report.pdf.
+Usage: ./compile input_file output_file
+To compile use 'make'.
+
+To run the test suite run 'make test'. Additional information on the
+files that failed to compile or that return a value different
+from the reference one will be put in the autotest-result folder.
+
+To read more about the compiler, refer to report/report.pdf.
