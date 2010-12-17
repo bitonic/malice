@@ -234,7 +234,7 @@ ret
 
 
 
-; READING procedure for INTEGERS (signed, 32-bit)
+; READING function for INTEGERS (signed, 32-bit)
 
 global _read_int
 _read_int:	; int readInt(void)
@@ -259,7 +259,7 @@ mov eax, 3	; read()
 int 0x80
 
 cmp eax, 0
-je _read_int_end	; End of input
+je _read_int_neg	; End of input
 
 mov eax, 0
 mov al, [esp]
@@ -271,9 +271,9 @@ jmp _read_int_next
 
 _read_int_process_num:
 cmp al, 0x30
-jb _read_int_end	; char < '0'
+jb _read_int_neg	; char < '0'
 cmp al, 0x39
-ja _read_int_end	; char > '9'
+ja _read_int_neg	; char > '9'
 
 sub eax, 0x30
 imul edi, 10	; shift old digits
@@ -282,12 +282,29 @@ add edi, eax	; add new digit
 jmp _read_int_next
 
 
-_read_int_end:
+_read_int_neg:
 test esi, esi
-jz _read_int_end2
+jz _read_int_skip_loop
 neg edi
 
-_read_int_end2:
+
+_read_int_skip_loop:	; read and skip until newline is encountered
+cmp byte [esp], 0x0a
+je _read_int_end	; if newline found -> end reading
+
+mov edx, 1	; number of chars
+mov ecx, esp	; character buffer
+mov ebx, 0	; stdin fd
+mov eax, 3	; read()
+int 0x80
+
+cmp eax, 0
+je _read_int_end	; End of input -> end reading
+
+jmp _read_int_skip_loop
+
+
+_read_int_end:
 mov eax, edi	; Return value: The number read
 
 add esp, 4
@@ -323,7 +340,7 @@ call _print_string
 add esp, 4
 
 push dword [esp+12]	; free the address we were supposed to keep
-call free		; track of so we can bail out correctly
+call free		; track of so we can exit correctly
 add esp, 4
 
 mov eax, 1
@@ -384,18 +401,17 @@ ret
 
 section .data
 
+
+__start_esp: dd 0
+__alloc_list: dd 0
+
+
 _str_abc_1: db "Oh no! You wanted their ",0
-; requested item number
 _str_abc_2: db " piece, but they only had ",0
-; array size
 _str_paragraph_1: db ". Check paragraph ",0
-; source code line
 _str_paragraph_2: db " of the story again!",10,0
 
 _str_alloc_1: db "Oh no! You wanted ",0
 _str_alloc_2: db " many physical pieces, but they didn't have this many",0
 
 _str_gc_alloc_fail: db "Error allocating memory for garbage tracker.",10,0
-
-__start_esp: dd 0
-__alloc_list: dd 0
