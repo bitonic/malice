@@ -25,6 +25,7 @@ mov [__start_esp], esp
 call _main
 _start_end:
 mov esp, [__start_esp]
+call _garbage_free_all
 mov ebx, eax
 mov eax, 1
 int 0x80
@@ -33,7 +34,7 @@ int 0x80
 
 
 
-; ALLOCATING function for array memory
+; ALLOCATION function for new garbage
 
 global _malice_alloc
 _malice_alloc:		; void* maliceAlloc(int size, int sourceline)
@@ -67,6 +68,9 @@ mov eax, 1
 jmp _start_end	; poor man's exception handling
 
 _malice_alloc_ok:
+push eax
+call _garbage_add	; keep track of allocated memory
+add esp, 4
 ret
 
 
@@ -299,6 +303,85 @@ ret
 
 
 
+; GARBAGE COLLECTION: Adding entry to head of single linked list
+
+global _garbage_add
+_garbage_add:	; void garbageAdd(void *addr)
+push eax
+push ebx
+
+push dword 8
+call malloc
+add esp, 4
+
+test eax, eax		; malloc() == 0?
+jne _garbage_add_listok
+
+
+push _str_gc_alloc_fail
+call _print_string
+add esp, 4
+
+push dword [esp+12]	; free the address we were supposed to keep
+call free		; track of so we can bail out correctly
+add esp, 4
+
+mov eax, 1
+jmp _start_end	; poor man's exception handling
+
+
+_garbage_add_listok:
+mov ebx, [esp+12]
+mov [eax], ebx		; store the new entry
+mov ebx, [__alloc_list]
+mov [eax+4], ebx	; store the tail of the list
+mov [__alloc_list], eax	; update head address
+
+pop ebx
+pop eax
+ret
+
+
+
+
+
+; GARBAGE COLLECTION: Freeing the entire linked list of garbage
+
+global _garbage_free_all
+_garbage_free_all:	; void garbageFreeAll()
+push eax	; eax is destroyed by free()'s inexistent return value
+push ebx
+
+mov ebx, [__alloc_list]	; get the party started
+
+_garbage_free_all_next:
+test ebx, ebx		; next entry == 0?
+je _garbage_free_all_done
+
+
+push dword [ebx]	; free the user mem
+call free
+add esp, 4
+
+push ebx		; free the list entry mem
+mov ebx, [ebx+4]	; get address of next element
+call free
+add esp, 4
+
+jmp _garbage_free_all_next
+
+
+_garbage_free_all_done:
+mov [__alloc_list], dword 0	; update head address
+
+pop ebx
+pop eax
+ret
+
+
+
+
+
 section .data
 
 _str_abc_1: db "Oh no! You wanted their ",0
@@ -312,4 +395,7 @@ _str_paragraph_2: db " of the story again!",10,0
 _str_alloc_1: db "Oh no! You wanted ",0
 _str_alloc_2: db " many physical pieces, but they didn't have this many",0
 
+_str_gc_alloc_fail: db "Error allocating memory for garbage tracker.",10,0
+
 __start_esp: dd 0
+__alloc_list: dd 0
