@@ -79,9 +79,13 @@ global _check_arr
 _check_arr:		; int checkArr(int sourceline, int *array, int item)
 mov eax, [esp+8]	; get array address
 mov eax, [eax]		; get array size (hidden element 0)
-cmp eax, [esp+12]
-jae _check_arr_ok	; if size >= item, return OK
+cmp [esp+12], eax
+jg _check_arr_notok	; if item > size -> Not OK
+cmp [esp+12], dword 0
+jle _check_arr_notok	; if item <= 0 -> Not OK
+jmp _check_arr_ok
 
+_check_arr_notok:
 push _str_paragraph_2
 push dword [esp+4+4]
 push _str_paragraph_1
